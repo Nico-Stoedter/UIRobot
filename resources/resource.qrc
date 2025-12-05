@@ -1,0 +1,15 @@
+<RCC>
+  <qresource prefix="icon">
+    <file>icon/icons8-power-off-button-32.ico</file>
+    <file>icon/icons8-neustart-32.ico</file>
+    <file>icon/omnivac.ico</file>
+    <file>icon/icons8-abschalttaste1-32.ico</file>
+    <file>icon/icons8-abschalttaste-32.ico</file>
+    <file>icon/joystick-32.ico</file>
+    <file>icon/error-32.ico</file>
+    <file>icon/dashboard-2-32.ico</file>
+    <file>icon/help-32.ico</file>
+    <file>icon/menu-4-32.ico</file>
+    <file>icon/settings-10-32.ico</file>
+  </qresource>
+</RCC>
