@@ -191,7 +191,7 @@ class ControllerManager:
                 gradual_spd = 0
         elif event.axis == 1 or event.axis == 3:
             # invert axis 1 and 3
-            gradual_spd = int(event.value * (spd_stepps / -2))
+            gradual_spd = spd_stepps * -1
 
         return gradual_spd
 

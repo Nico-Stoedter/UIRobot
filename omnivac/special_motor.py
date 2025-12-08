@@ -107,11 +107,11 @@ class ConnectedMotors:
         self.manager.transport.write(msg.encode('utf-8'), True)
     
 class RotTranMotor:
-    def __init__(self, motor_manager: "MotorManager"):
+    def __init__(self, motor_manager: "MotorManager", rot_device_id, trn_device_id):
         self.manager = motor_manager
         self.ini_manager = IniManager()
-        self.rot_dev_id = 72
-        self.trn_dev_id = 73
+        self.rot_dev_id = rot_device_id # should be 72 (if nothing changed)
+        self.trn_dev_id = trn_device_id # should be 73 (if nothing changed)
 
     def rot_tran_movement(self, id: int, input: float|int, controller: bool) -> None:
         self.CUIDTRot3R = RotationTypes(self.manager)
@@ -124,8 +124,8 @@ class RotTranMotor:
 
         input_stp = self.manager.unit_to_steps(id, input)
 
-        rot_pos_degree = self.manager.steps_to_unit(72, rot_pos_stp)
-        trn_pos_mm = self.manager.steps_to_unit(73, trn_pos_stp)
+        rot_pos_degree = self.manager.steps_to_unit(self.rot_dev_id, rot_pos_stp)
+        trn_pos_mm = self.manager.steps_to_unit(self.trn_dev_id, trn_pos_stp)
 
         trn_dev_ena = trn_dev.motor_status.get("ena")
 
@@ -133,13 +133,13 @@ class RotTranMotor:
         one_round_unit = self.manager.steps_to_unit(self.rot_dev_id, one_round_stp)
 
         if controller: # With controller, input should be a spd_stp value
-            rot_spd_stp = input if id == 72 else 0
-            trn_spd_stp = input if id == 73 else 0 
+            rot_spd_stp = input if id == self.rot_dev_id else 0
+            trn_spd_stp = input if id == self.trn_dev_id else 0 
 
             if input > 0:   # input know converted to the max/min value of device
-                input = rot_dev.max_position if id == 72 else trn_dev.max_position
+                input = rot_dev.max_position if id == self.rot_dev_id else trn_dev.max_position
             else:
-                input = rot_dev.min_position if id == 72 else trn_dev.min_position
+                input = rot_dev.min_position if id == self.rot_dev_id else trn_dev.min_position
         else:
             rot_spd_stp = max(-32768, min(int(rot_dev.max_speed / 60 * 2000), 32767))
             trn_spd_stp = max(-32768, min(int(trn_dev.max_speed / 60 * 2000), 32767))
@@ -149,65 +149,73 @@ class RotTranMotor:
             trn_one_round = self.manager.unit_to_steps(self.trn_dev_id, 360)
             real_input = input + 360
 
-            print(real_input, rot_pos_degree)
-
             if (rot_pos_stp - trn_one_round) <= target_stp:
                 offset_degree = (real_input - rot_pos_degree) * trn_dev.position_factor
             else:
                 offset_degree = (real_input - (rot_pos_degree - 360)) * trn_dev.position_factor
 
-            offset =  -1 * self.manager.unit_to_steps(73, offset_degree)
-
-            print("OFFSET: ", offset)
+            offset =  -1 * self.manager.unit_to_steps(self.trn_dev_id, offset_degree)
 
         msg = ""
 
         if rot_dev and trn_dev:
-            if (trn_pos_mm < 0.1) and (trn_dev_ena == 1) and (rot_dev.dev_type == 2):
+            if (trn_pos_mm < 0.1) and (rot_dev.dev_type == 2):
                 print("Activates regular Rotation") # rot_dev back to regular rotation
                 rot_dev.dev_type = 3
                 rot_dev.min_position = 0
                 rot_dev.max_position = 720
-            if  (trn_pos_mm > 5) and (trn_dev_ena == 1) and (rot_dev.dev_type == 3): # if trn extended allow tolerance rot movement
+            if  (trn_pos_mm >= 5) and (trn_dev_ena == 1) and (rot_dev.dev_type == 3): # if trn extended allow tolerance rot movement
                 print("Acitvates limited Rotation") # rot_dev to limited rotation
                 rot_dev.dev_type = 2
                 rot_dev.min_position = rot_pos_degree - 1.8 - one_round_unit
                 rot_dev.max_position = rot_pos_degree + 1.8 - one_round_unit
-            if (id == 72) and (trn_dev_ena == 1) and (rot_dev.dev_type == 3): # trn OFF if rot moves
+            if (id == self.rot_dev_id) and (trn_dev_ena == 1) and (rot_dev.dev_type == 3): # trn OFF for regular rotation
                 print("trn OFF")
-                msg += "ADR=73;OFF;"
+                msg += f"ADR={self.trn_dev_id};OFF;"
                 trn_dev_ena = 0
-            if (id == 73): # translation movement
+            if (id == self.trn_dev_id): # translation movement
                 if controller:
                     if trn_pos_stp < 5:
+                        print("Controller standard rot movement enabled")
                         print("min-max wieder normal")
                         rot_dev.min_position = 0
                         rot_dev.max_position = 360
                 else:
-                    if input < 0.1:
+                    if input < 0.1:     # ToDo, besser machen sollte nicht vom input abhängig sein sondern vom gegenwärtigen Zustand
+                        print("Manual standard rot movement enabled")
                         print("min-max wieder normal")
                         rot_dev.min_position = 0
                         rot_dev.max_position = 360
 
-                msg += "ADR=73;ENA;"
-                msg += f"ADR=73;SPD{trn_spd_stp};QEC{input_stp};"
-            if (id == 72) and (trn_pos_mm < 0.1) and (trn_dev_ena == 0) and (rot_dev.dev_type == 3):
-                # regular right rotation movement
+                msg += f"ADR={self.trn_dev_id};ENA;"
+                msg += f"ADR={self.trn_dev_id};SPD{trn_spd_stp};QEC{input_stp};"
+            if (id == self.rot_dev_id) and (trn_pos_mm < 0.1) and (trn_dev_ena == 0) and (rot_dev.dev_type == 3):
+                 # regular right rotation movement
                 if controller:
+                    print("regular rot movement Controller")
                     msg += self.CUIDTRot3R.rotation_type_3_4_controller(rot_dev, rot_spd_stp)
                 else:
-                    msg += f"ADR=73;ORG{offset};"
+                    print("regular rot movement Manual")
+                    msg += f"ADR={self.trn_dev_id};ORG{offset};"
                     msg += self.CUIDTRot3R.right_rotation(rot_dev, input)
-            if (id == 72) and (trn_dev_ena == 0) and (rot_dev.dev_type == 3) and (rot_spd_stp == 0):
-                print("ENA")
-                msg += "ADR=73;ENA;ORG0;ADR=72;STP1;"
+            if (id == self.rot_dev_id) and (trn_dev_ena == 0) and (rot_dev.dev_type == 3) and (rot_spd_stp == 0):
+                msg += f"ADR={self.trn_dev_id};ENA;ORG0;ADR={self.rot_dev_id};STP1;"
                 trn_dev_ena = 1
-            if (id == 72) and (trn_pos_mm > 5) and (trn_dev_ena == 1) and (rot_dev.dev_type == 2):
-                # limited rotation movement
+            if (id == self.rot_dev_id) and (trn_pos_mm >= 5) and (trn_dev_ena == 1) and (rot_dev.dev_type == 2):
+                print("limited rot movement", rot_dev.min_position, rot_dev.max_position) # limited rotation movement
                 if  rot_dev.min_position > input or rot_dev.max_position < input:
                     return msg
-                
-                msg += f"ADR=72;SPD{rot_spd_stp};QEC{input_stp + one_round_stp};"
+
+                if controller:
+                    print("Controller")
+                    input_unit = rot_dev.max_position if rot_spd_stp > 0 else rot_dev.min_position
+                    print(input_stp)
+                    input_stp = self.manager.unit_to_steps(self.rot_dev_id, input_unit)
+                    msg += f"ADR={self.rot_dev_id};SPD{rot_spd_stp};QEC{input_stp + one_round_stp};"
+                else:
+                    print("No Controller")
+                    msg += f"ADR={self.rot_dev_id};SPD{rot_spd_stp};QEC{input_stp + one_round_stp};"
+
 
         return msg
 

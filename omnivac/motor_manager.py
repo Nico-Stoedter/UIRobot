@@ -29,7 +29,7 @@ class MotorManager:
 
         self.rot_device_id = 72
         self.trn_device_id = 73
-        self.rot_tran_motor = RotTranMotor(self)
+        self.rot_tran_motor = RotTranMotor(self, self.rot_device_id, self.trn_device_id)
 
         self.rotation_types = RotationTypes(self)
 
@@ -283,8 +283,6 @@ class MotorManager:
         '''Manages r1_r3 controler movement'''
 
         msg = ""
-
-        print("Cool", spd)
 
         if motor_id == self.r1_device_id:
             self.special_motor.dual_r1_r3_controller(spd)
