@@ -112,11 +112,11 @@ class ControllerManager:
                     axis_x = round(self.joystick.get_axis(0), 2)
                     axis_y = round(self.joystick.get_axis(1) * -1, 2)
 
-                    x_device = self.motors.get(74)
-                    y_device = self.motors.get(75)
+                    x_motor = self.motors.get(74)
+                    y_motor = self.motors.get(75)
 
-                    x_spd_rpm = x_device.max_speed
-                    y_spd_rpm = y_device.max_speed
+                    x_spd_rpm = x_motor.max_speed
+                    y_spd_rpm = y_motor.max_speed
 
                     spd_stepps_x = max(-32768, min(int(x_spd_rpm / 60 * 2000), 32767))
                     spd_stepps_y = max(-32768, min(int(y_spd_rpm / 60 * 2000), 32767))
@@ -155,8 +155,8 @@ class ControllerManager:
 
     def event_controller_connected(self, event):
         print('ADDED')
-        device_index = event.device_index
-        self.joystick = pygame.joystick.Joystick(device_index)
+        motor_index = event.device_index
+        self.joystick = pygame.joystick.Joystick(motor_index)
         self.joystick.init()
 
     def event_button_lb(self):

@@ -40,7 +40,7 @@ class Worker(QObject):
                 if motor_id in [74,75]:
                     if self.check_x_y_movement(cur_pos, motor_id):
                         if not self.x_y_popup_sent:
-                            self.popup_signal.emit("x and y devices out of range")
+                            self.popup_signal.emit("x and y motors out of range")
                             self.stop_motor_signal.emit(74)
                             self.stop_motor_signal.emit(75)
                             self.x_y_popup_sent = True
@@ -59,18 +59,18 @@ class Worker(QObject):
             QThread.msleep(50)
 
     def check_x_y_movement(self, cur_pos, motor_id) -> bool:
-        x_device = self.motors.get(74)
-        y_device = self.motors.get(75)
+        x_motor = self.motors.get(74)
+        y_motor = self.motors.get(75)
 
-        x_pos_stp = cur_pos if motor_id == 74 else x_device.get_motor_pos()
-        y_pos_stp = cur_pos if motor_id == 75 else y_device.get_motor_pos()
+        x_pos_stp = cur_pos if motor_id == 74 else x_motor.get_motor_pos()
+        y_pos_stp = cur_pos if motor_id == 75 else y_motor.get_motor_pos()
 
         x_pos_mm = self.motor_manager.steps_to_unit(74, x_pos_stp)
         y_pos_mm = self.motor_manager.steps_to_unit(75, y_pos_stp)
 
         circular_range = math.sqrt(x_pos_mm**2 + y_pos_mm**2)
 
-        if circular_range > x_device.max_position:
+        if circular_range > x_motor.max_position:
             return True
         
         return False
