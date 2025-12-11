@@ -277,56 +277,59 @@ class MotorManager:
         else:
             self.move_normal(id, input)
 
-    def controller_movement(self, axis_x, axis_y, gradual_spd_x, gradual_spd_y, motor_id, spd) -> None:
+    def controller_movement(self, axis_x, axis_y, motor_speeds: dict[int, int]) -> None:
         '''Manages r1_r3 controler movement'''
 
-        msg = ""
+        for motor_id, spd in motor_speeds.items():
+            msg = ""
 
-        if motor_id == self.r1_motor_id:
-            self.special_motor.dual_r1_r3_controller(spd)
+            if motor_id == self.r1_motor_id:
+                self.special_motor.dual_r1_r3_controller(spd)
 
-            if spd == 0:
-                time.sleep(0.1)
-                r3_motor = self.motors.get(self.r3_motor_id)
-                org_r3 = r3_motor.r3_org_pos
-                msg += f"ADR={self.r3_motor_id};ORG{org_r3};"
+                if spd == 0:
+                    time.sleep(0.1)
+                    r3_motor = self.motors.get(self.r3_motor_id)
+                    org_r3 = r3_motor.r3_org_pos
+                    msg += f"ADR={self.r3_motor_id};ORG{org_r3};"
 
-                self.transport.write(msg.encode('utf-8'), True)
+                    self.transport.write(msg.encode('utf-8'), True)
 
-        elif motor_id == self.r3_motor_id:
-            self.special_motor.r3_movement(spd)
+            elif motor_id == self.r3_motor_id:
+                self.special_motor.r3_movement(spd)
 
-            if spd == 0:
-                r3_motor = self.motors.get(self.r3_motor_id)
+                if spd == 0:
+                    r3_motor = self.motors.get(self.r3_motor_id)
 
-                last_pos = r3_motor.get_motor_pos()
-                stable_count = 0
-                max_stable = 25  # Anzahl aufeinanderfolgender "keine Änderung", bevor wir abbrechen
+                    last_pos = r3_motor.get_motor_pos()
+                    stable_count = 0
+                    max_stable = 25  # Anzahl aufeinanderfolgender "keine Änderung", bevor wir abbrechen
 
-                while True:
-                    cur_pos = r3_motor.get_motor_pos()
+                    while True:
+                        cur_pos = r3_motor.get_motor_pos()
 
-                    if cur_pos != last_pos:
-                        # Encoder hat sich bewegt -> ORG updaten
-                        r3_motor.r3_org_pos = cur_pos
-                        last_pos = cur_pos
-                        stable_count = 0
-                    else:
-                        # Keine Bewegung
-                        stable_count += 1
-                        if stable_count >= max_stable:
+                        if cur_pos != last_pos:
+                            # Encoder hat sich bewegt -> ORG updaten
                             r3_motor.r3_org_pos = cur_pos
-                            break  # Encoder stabil -> fertig
+                            last_pos = cur_pos
+                            stable_count = 0
+                        else:
+                            # Keine Bewegung
+                            stable_count += 1
+                            if stable_count >= max_stable:
+                                r3_motor.r3_org_pos = cur_pos
+                                break  # Encoder stabil -> fertig
 
-        elif motor_id in [72,73]:
-            self.rot_tran_motor.rot_tran_movement(motor_id, spd, True)  
-        elif motor_id in [self.x_motor_id, self.y_motor_id]: # id in [74, 75]
-            self.x_y_motors.x_y_controller_movement(axis_x, axis_y, gradual_spd_x, gradual_spd_y)
-        else:
-            self.standard_controller_movement(motor_id, spd) 
+            elif motor_id in [72,73]:
+                self.rot_tran_motor.rot_tran_movement(motor_id, spd, True)  
+            elif motor_id in [self.x_motor_id, self.y_motor_id]: # id in [74, 75]
+                spd_x = motor_speeds.get(self.x_motor_id)
+                spd_y = motor_speeds.get(self.y_motor_id)
+                self.x_y_motors.x_y_controller_movement(axis_x, axis_y, spd_x, spd_y)
+            else:
+                self.standard_controller_movement(motor_id, spd) 
 
-        if msg != "":
-            self.transport.write(msg.encode('utf-8'), True)
+            if msg != "":
+                self.transport.write(msg.encode('utf-8'), True)
 
     def standard_controller_movement(self, motor_id: int, spd: float) -> None:
         '''Sendet Nachricht an einem Motor(z.B ADR=x;QEC=y;)'''

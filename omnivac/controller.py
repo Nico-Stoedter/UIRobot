@@ -62,13 +62,13 @@ class ControllerManager:
                 if motor_id == None:
                     break
 
-                spd_tuple, id_tuple = self.joystick_motion(event.axis, motor_id)                      
+                motor_speeds = self.joystick_motion(event.axis, motor_id)                      
 
                 if motor_id in[74,75]: # Hier späte gucken ob einfacher geht
                     axis_x = round(self.joystick.get_axis(0), 2)
                     axis_y = round(self.joystick.get_axis(1) * -1, 2)
                         
-                #self.motor_manager.controller_movement(axis_x, axis_y, spd_tuple, id_tuple motor_id)
+                self.motor_manager.controller_movement(axis_x, axis_y, motor_speeds)
 
     # --- Button Events ---
 
@@ -117,14 +117,17 @@ class ControllerManager:
                                                        gradual_spd_y, key, new_spd)
                 self.last_spd_send[key] = new_spd
 
-    def joystick_motion(self, joy_axis: int, motor_id: int) -> tuple:
-        '''Manages value from joystick'''
+    def joystick_motion(self, joy_axis: int, motor_id: int) -> dict[int, int]:
+        '''Manages value from joystick and RT,LT and returns a dict with the motor_id 
+            of corresponding joystick action and a spd value based on deflection'''
         spd_rpm: float = float(self.ini_manager.get_value(motor_id, "Soft_Basic", "Max_Speed(rpm)"))
         spd_stepps = max(-32768, min(int(spd_rpm / 60 * 2000), 32767))
 
         spd_x = spd_y = spd_z = 0
 
         x_id = y_id = z_id = None
+
+        motor_speeds = {}
 
         # --- Axis Management ---
         axes = { # Get value from all axis
@@ -162,7 +165,10 @@ class ControllerManager:
             self.moving_motor[y_id] = y_value > 0
 
             spd_x = factor * int((spd_stepps / 2) * x_value)
-            spd_y = factor * int((spd_stepps / 2) * y_value) 
+            spd_y = factor * int((spd_stepps / 2) * y_value)
+
+            motor_speeds[x_id] = spd_x
+            motor_speeds[y_id] = spd_y 
 
         # --- Trigger (Z-Axis) ---
         elif joy_axis in [4, 5]:
@@ -176,12 +182,11 @@ class ControllerManager:
             if joy_axis == 4:
                 spd_z *= -1
 
-        print((spd_x, spd_y, spd_z), (x_id, y_id, z_id))
+            motor_speeds[z_id] = spd_z
 
-        return (spd_x, spd_y, spd_z), (x_id, y_id, z_id)
+        return motor_speeds
 
     # --- Miscellaneous ---
-
     def event_joy_correction_rt_lt(self, event_axis, spd_stepps):
         # Trigger: RT = Axis 5, LT = Axis 4 
         # Special because weird values. Sticks have -1.0 to 1.0 but for RT/LT have each -1.0 to 1.0
