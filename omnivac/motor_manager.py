@@ -33,10 +33,10 @@ class MotorManager:
 
         self.rotation_types = RotationTypes(self)
 
-    ### Checking user input ###
+    # --- Functions for Checking User Input ---
 
     def range_check(self, motor: "Motor", val: float) -> bool:
-        # Check if input between min_pos, max_pos  
+        '''Checks if input between min_pos, max_pos ''' 
         if val < motor.min_position or val > motor.max_position:
             return False
         
@@ -58,7 +58,8 @@ class MotorManager:
         else:
             return False
         
-    def ccd_check(self, input_position) -> None:
+    def ccd_check(self, input_position) -> None: # Todo muss noch getestet werden
+        '''collison predictin before movement'''
         x_motor = self.motors.get(5)
         y_motor = self.motors.get(6)
         z_motor = self.motors.get(7)
@@ -104,7 +105,7 @@ class MotorManager:
             self.pop_up.show_popup(f"Collision with Security Zone: {coll[1]}")
             return 
     
-    #############################
+    # --- Function for Motor Communication ---
 
     def request_motor_feedback(self) -> None:
         '''Broadcasts FBK message'''
@@ -173,6 +174,16 @@ class MotorManager:
             else:
                 msg = f'ADR={id};STP1;'
             self.transport.write(msg.encode('utf-8'), True)
+
+    def send_ORG(self, id, input) -> None:
+        input = self.unit_to_steps(id, float(input))
+        msg = f'ADR={id};ORG{input};'
+
+        if id == self.r3_motor_id:
+            r3_motor = self.motors.get(id)
+            r3_motor.r3_org_pos = input
+
+        self.transport.write(msg.encode('utf-8'), True)
 
     def check_feedback_addresses(self) -> dict[int, Motor]:
         '''Searches for connected addresses'''
@@ -243,6 +254,7 @@ class MotorManager:
         return  unit
     
     def move_normal(self, id: int, input: float) -> None:
+        '''Regular motor movement without controller'''
         motor = self.motors.get(id)
         spd_rpm = motor.max_speed
         spd_steps = max(-32768, min(int(spd_rpm / 60 * 2000), 32767))
@@ -251,7 +263,7 @@ class MotorManager:
 
         self.set_current_motor_direction(motor, position_steps)
 
-        if motor.dev_type == 3:
+        if motor.dev_type in [3,4]:
             msg = self.rotation_types.right_rotation(motor, input)
             return msg
 
@@ -264,29 +276,33 @@ class MotorManager:
     
     def move_motor(self, id: int, input: float) -> None:
         '''Moves motor(id) with QEC(input); command and with in .ini defined speed'''
-        position_steps = self.unit_to_steps(id, float(input)) # Das in die jeweilige funktion outsourcen funktion soll als parameter id und input haben
+        position_steps = self.unit_to_steps(id, float(input)) 
 
         if id == self.r3_motor_id:
             r3_motor = self.motors.get(id)
             r3_motor.r3_org_pos = position_steps
             self.move_normal(id, input)
+
         elif id == self.r1_motor_id:
             self.special_motor.r1_movement(position_steps)
-        elif id in [72, 73]:
+
+        elif id in [self.rot_motor_id, self.trn_motor_id]:
             self.rot_tran_motor.rot_tran_movement(id, input, False)
+
         else:
             self.move_normal(id, input)
 
     def controller_movement(self, axis_x, axis_y, motor_speeds: dict[int, int]) -> None:
-        '''Manages r1_r3 controler movement'''
+        '''Manages movement with controller'''
 
         for motor_id, spd in motor_speeds.items():
             msg = ""
 
             if motor_id == self.r1_motor_id:
-                self.special_motor.dual_r1_r3_controller(spd)
+                r1_spd = motor_speeds.get(self.r1_motor_id)
+                self.special_motor.dual_r1_r3_controller(r1_spd)
 
-                if spd == 0:
+                if r1_spd == 0:
                     time.sleep(0.1)
                     r3_motor = self.motors.get(self.r3_motor_id)
                     org_r3 = r3_motor.r3_org_pos
@@ -294,10 +310,11 @@ class MotorManager:
 
                     self.transport.write(msg.encode('utf-8'), True)
 
-            elif motor_id == self.r3_motor_id:
-                self.special_motor.r3_movement(spd)
+            elif motor_id == self.r3_motor_id: #Todo Wenn möglich all das stable count Zeug weg
+                r3_spd = motor_speeds.get(self.r3_motor_id)
+                self.special_motor.r3_movement(r3_spd)
 
-                if spd == 0:
+                if r3_spd == 0:
                     r3_motor = self.motors.get(self.r3_motor_id)
 
                     last_pos = r3_motor.get_motor_pos()
@@ -319,20 +336,25 @@ class MotorManager:
                                 r3_motor.r3_org_pos = cur_pos
                                 break  # Encoder stabil -> fertig
 
-            elif motor_id in [72,73]:
+            elif motor_id in [self.rot_motor_id, self.trn_motor_id]:
+                spd = (motor_speeds.get(self.rot_motor_id) 
+                        if motor_id == self.rot_motor_id 
+                        else motor_speeds.get(self.trn_motor_id))
                 self.rot_tran_motor.rot_tran_movement(motor_id, spd, True)  
-            elif motor_id in [self.x_motor_id, self.y_motor_id]: # id in [74, 75]
+
+            elif motor_id in [self.x_motor_id, self.y_motor_id]: 
                 spd_x = motor_speeds.get(self.x_motor_id)
                 spd_y = motor_speeds.get(self.y_motor_id)
                 self.x_y_motors.x_y_controller_movement(axis_x, axis_y, spd_x, spd_y)
+
             else:
                 self.standard_controller_movement(motor_id, spd) 
 
             if msg != "":
                 self.transport.write(msg.encode('utf-8'), True)
 
-    def standard_controller_movement(self, motor_id: int, spd: float) -> None:
-        '''Sendet Nachricht an einem Motor(z.B ADR=x;QEC=y;)'''
+    def standard_controller_movement(self, motor_id: int, spd: float) -> None: # Todo wie message generiert werden kann man bestimmt verbessern
+        '''Handles regular controller movement'''
         motor = self.motors.get(motor_id)
         encoder = motor.encoder
         min_pos = motor.min_position
@@ -362,16 +384,6 @@ class MotorManager:
             else:
                 msg = f'ADR={motor_id};SPD0;STP1;'
             
-        self.transport.write(msg.encode('utf-8'), True)
-
-    def send_ORG(self, id, input) -> None:
-        input = self.unit_to_steps(id, float(input))
-        msg = f'ADR={id};ORG{input};'
-
-        if id == self.r3_motor_id:
-            r3_motor = self.motors.get(id)
-            r3_motor.r3_org_pos = input
-
         self.transport.write(msg.encode('utf-8'), True)
 
     def start_config_motor(self, id) -> None:
