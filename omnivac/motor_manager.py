@@ -348,7 +348,8 @@ class MotorManager:
                 self.x_y_motors.x_y_controller_movement(axis_x, axis_y, spd_x, spd_y)
 
             else:
-                self.standard_controller_movement(motor_id, spd) 
+                if motor_id != None:
+                    self.standard_controller_movement(motor_id, spd) 
 
             if msg != "":
                 self.transport.write(msg.encode('utf-8'), True)
