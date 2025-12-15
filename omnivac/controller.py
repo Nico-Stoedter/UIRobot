@@ -67,7 +67,7 @@ class ControllerManager:
                 if motor_id in[74,75]: # Hier späte gucken ob einfacher geht
                     axis_x = round(self.joystick.get_axis(0), 2)
                     axis_y = round(self.joystick.get_axis(1) * -1, 2)
-                        
+  
                 self.motor_manager.controller_movement(axis_x, axis_y, motor_speeds)
 
     # --- Button Events ---
@@ -89,33 +89,28 @@ class ControllerManager:
         print(f'[ControllerManager] double speed ON')
         self.double_speed = True
 
-        for key, value in self.last_spd_send.items():
-            if self.moving_motor.get(key):
-                print("Cool")
-                axis_x = 0
+        for motor_id, value in self.last_spd_send.items():
+            if self.moving_motor.get(motor_id):
+                axis_x = 0 # Contorller movement braucht diese beiden Werte # Todo controller_movemnt von diesen beiden unabhängig machen
                 axis_y = 0
-                gradual_spd_x = 0
-                gradual_spd_y = 0
-                new_spd = value * 2
-                self.motor_manager.controller_movement(axis_x, axis_y, gradual_spd_x, 
-                                                       gradual_spd_y, key, new_spd)
-                self.last_spd_send[key] = new_spd
+                new_spd = int(value * 2)
+                double_speed = {motor_id: new_spd}
+                self.motor_manager.controller_movement(axis_x, axis_y, double_speed)
+                self.last_spd_send[motor_id] = new_spd
 
     def event_button_rb_up(self):
         '''Manages action for lb button'''
         print(f'[ControllerManager] double speed OFF')
         self.double_speed = False
 
-        for key, value in self.last_spd_send.items():
-            if self.moving_motor.get(key):
-                axis_x = 0
+        for motor_id, value in self.last_spd_send.items():
+            if self.moving_motor.get(motor_id):
+                axis_x = 0 # Contorller movement braucht diese beiden Werte # Todo controller_movemnt von diesen beiden unabhängig machen
                 axis_y = 0
-                gradual_spd_x = 0
-                gradual_spd_y = 0
                 new_spd = int(value/2)
-                self.motor_manager.controller_movement(axis_x, axis_y, gradual_spd_x, 
-                                                       gradual_spd_y, key, new_spd)
-                self.last_spd_send[key] = new_spd
+                double_speed = {motor_id: new_spd}
+                self.motor_manager.controller_movement(axis_x, axis_y, double_speed)
+                self.last_spd_send[motor_id] = new_spd
 
     def joystick_motion(self, joy_axis: int, motor_id: int) -> dict[int, int]:
         '''Manages value from joystick and RT,LT and returns a dict with the motor_id 
@@ -168,7 +163,9 @@ class ControllerManager:
             spd_y = factor * int((spd_stepps / 2) * y_value)
 
             motor_speeds[x_id] = spd_x
-            motor_speeds[y_id] = spd_y 
+            self.last_spd_send[x_id] = spd_x
+            motor_speeds[y_id] = spd_y
+            self.last_spd_send[y_id] = spd_y 
 
         # --- Trigger (Z-Axis) ---
         elif joy_axis in [4, 5]:
@@ -183,6 +180,7 @@ class ControllerManager:
                 spd_z *= -1
 
             motor_speeds[z_id] = spd_z
+            self.last_spd_send[z_id] = spd_z
 
         return motor_speeds
 
