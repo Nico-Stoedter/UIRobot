@@ -304,6 +304,8 @@ class IniManager():
                         errors.append(f"Unbekannter Typ für {section}.{key}")
                 except ValueError:
                     errors.append(f"Falsches Format: {section}.{key}='{value}' erwartet {expected_type.__name__}")
+                except Exception:
+                    errors.append(f"Unbekanter .ini Fehler. Überprüfe die .ini nochmal")
 
         for error in errors:
             self.pop_up.show_popup(f"{error}")
