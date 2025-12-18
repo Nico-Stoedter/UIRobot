@@ -22,12 +22,12 @@ class Worker(QObject):
         self.running = True
 
         # Set to remember, which motors triggered a pop-up
-        self.critical_pairs = {}  # speichert, ob ein Paar gerade im Sperrbereich ist (x/y movement)
         self.triggered_motors = set()
         self.last_pos: dict[int, None|float] = {motor_id: None for motor_id in motors}
 
     @Slot()
     def run(self):
+        '''Starts a thread which manages QEC; requests, security_postion defined in .ini'''
         while self.running:
             for motor_id, motor in self.motors.items():
                 self.motor_manager.request_motor_position(motor_id)
@@ -59,6 +59,7 @@ class Worker(QObject):
             QThread.msleep(50)
 
     def check_x_y_movement(self, cur_pos, motor_id) -> bool:
+        '''Checks the special x/y movement in real time and returns a False if boundary crossed'''
         x_motor = self.motors.get(74)
         y_motor = self.motors.get(75)
 
@@ -76,6 +77,7 @@ class Worker(QObject):
         return False
 
     def check_security_pos(self, motor, motor_id, unit_pos) -> None:
+        '''Checks if the current postion is a Security Position defined in the .ini'''
         pos_list = self.get_security_pos(motor)
         text_list = self.get_security_text(motor)
         dir_list = self.get_security_dir(motor)
@@ -111,6 +113,7 @@ class Worker(QObject):
         self.running = False # Signal to GUI
 
     def get_security_pos(self, motor) -> list[float]:
+        '''Gets all Security Position from the motor .ini'''
         security_setting: dict[int, list[float, str, bool]] = motor.security_settings
         security_value_list: list[float] = []
 
@@ -123,6 +126,7 @@ class Worker(QObject):
         return security_value_list
     
     def get_security_text(self, motor) -> list[str]:
+        '''Gets the text displayed for its Security Positions from the .ini'''
         security_setting: dict[int, list[float, str, bool]] = motor.security_settings
         security_text_list: list[float] = []
 
@@ -135,6 +139,7 @@ class Worker(QObject):
         return security_text_list
     
     def get_security_dir(self, motor) -> list[str]:
+        '''Gets the movement direction in which the Security Position message should be displayed'''
         security_setting: dict[int, list[float, str, bool]] = motor.security_settings
         security_dir_list: list[float] = []
 
