@@ -33,10 +33,10 @@ class MainWindow(QMainWindow):
         super(MainWindow, self).__init__()
 
         if getattr(sys, 'frozen', False):
-            # Wenn gebündelte EXE
+            # Path for .exe execution
             self.current_dir = os.path.dirname(sys.executable)
         else:
-             # Wenn im normalen Python-Modus
+            # Path for .py execution
             self.current_dir = os.path.dirname(os.path.abspath(__file__)) 
             
         self.setWindowIcon(QIcon(self.current_dir + "/icon/omnivac.ico"))
@@ -76,9 +76,7 @@ class MainWindow(QMainWindow):
         self.worker_thread.started.connect(self.worker.run)
         self.worker_thread.start()
 
-        ####################################################
-        ############ Logic for the Comport Page ############
-        ####################################################
+        # --- Logic for the Comport Page ---
 
         self.ui.combo_port.addItems(comports_manager.getActivePorts())
         self.ui.combo_baud.addItems(['9600', '14400', '19200', '38400', '57600', '115200'])
@@ -88,9 +86,9 @@ class MainWindow(QMainWindow):
 
         self.ui.btn_connect.clicked.connect(self.on_btn_connect_clicked)
 
-        ####################################################
-        ############ Logic for Sidbars + misc ##############
-        ####################################################
+        
+        # --- Logic for Sidbars + misc ---
+        
         self.ui.comport_btn.toggled.connect(self.on_comport_toggled)
         self.ui.comport_btn2.toggled.connect(self.on_comport_toggled)
         self.ui.motor_btn.toggled.connect(self.on_motor_toggled)
@@ -111,9 +109,9 @@ class MainWindow(QMainWindow):
         self.ui.reset_btn.clicked.connect(self.on_reset_btn_clicked)
         self.ui.reset_btn2.clicked.connect(self.on_reset_btn_clicked)
 
-        ####################################################
-        ############## Logic for info page #################
-        ####################################################
+        
+        # --- Logic for info page ---
+        
         self.webView = QWebEngineView()
         self.webView.settings().setAttribute(self.webView.settings().WebAttribute.PluginsEnabled, True)
         self.webView.settings().setAttribute(self.webView.settings().WebAttribute.PdfViewerEnabled, True)
@@ -123,10 +121,10 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.webView)
 
         if getattr(sys, 'frozen', False):
-            # Wenn gebündelt (z. B. .exe mit PyInstaller)
+            # Path for execution as .exe
             base_path = os.path.dirname(sys.executable)
         else:
-            # Wenn im normalen Python-Modus
+            # Path for execution as .py
             base_path = os.path.dirname(os.path.abspath(__file__))
 
         base_path = base_path.replace("\\omnivac", "")
@@ -136,9 +134,8 @@ class MainWindow(QMainWindow):
         
         self.webView.load(pdf_url)
     
-    ####################################################
-    ########## Functions for Sidbars + misc ############
-    ####################################################
+    # --- Functions for Sidbars + misc ---
+    
     def show_toast(self, text: str) -> None:
         toast = Toast(f'{text}', self)
 
@@ -155,8 +152,8 @@ class MainWindow(QMainWindow):
 
         toast.show_at(global_pos)
 
-    ### Change QPushButton checkable status when stackedWidget index changed
     def on_stackedWidget_changed(self, index):
+        '''Change QPushButton checkable status when stackedWidget index changed'''
         btn_list = self.ui.icon_only_widget.findChildren(QPushButton) \
                     + self.ui.full_menu_widget.findChildren(QPushButton)
 
@@ -167,7 +164,7 @@ class MainWindow(QMainWindow):
             else:
                 btn.setAutoExclusive(True)
 
-    ### function for changing menu page 
+    # --- function for changing menu page ---
     def on_comport_toggled(self, checked):
         if checked:
             self.ui.stackedWidget.setCurrentIndex(0)
@@ -195,7 +192,7 @@ class MainWindow(QMainWindow):
 
         event.accept()
 
-    ### functions for motors
+    # --- functions for motors ---
     def on_enable_all_clicked(self):
         self.motor_manager.enable_motors()
 
@@ -214,9 +211,7 @@ class MainWindow(QMainWindow):
 
             widget.setText("")
     
-    ####################################################
-    ########### Functions for Comport Page #############
-    ####################################################
+    # --- Functions for Comport Page ---
 
     def on_btn_connect_clicked(self):
         self.ui.btn_connect.setEnabled(False)
@@ -256,17 +251,14 @@ class MainWindow(QMainWindow):
             self.motor_manager.start_config_motor(id)
             time.sleep(0.1)
 
-    ####################################################
-    ####### Layout for motor Page + reset page #########
-    ####################################################
+    # --- Layout for motor Page + reset page ---
 
     def populate_widget(self, scroll_widget, motor_rows: int):
         old_layout = scroll_widget.layout()
         if old_layout is not None:
-            # Komplett entfernen und verwerfen
             QWidget().setLayout(old_layout)
 
-        # Neues Layout setzen
+        # new layout
         layout = QVBoxLayout(scroll_widget)
 
         # 1. Add Header
@@ -286,7 +278,7 @@ class MainWindow(QMainWindow):
             h_layout = self.create_motor_info_layout(scroll_widget, row, column_count)
             layout.addLayout(h_layout)
 
-            # Vertikaler Spacer (außer nach der letzten Zeile)
+            # Vertical Spacer (except last row)
             if row < motor_rows:
                 layout.addSpacing(10)
 
@@ -467,9 +459,7 @@ class MainWindow(QMainWindow):
 
         return layout
     
-    ####################################################
-    ############ Functions for Motor Page ##############
-    ####################################################
+    # --- Functions for Motor Page ---
 
     def steps_to_unit(self, motor_Id, steps) -> float:
         ''' Connverts steps to mm/degree'''
@@ -558,7 +548,7 @@ class MainWindow(QMainWindow):
 
         layout.deleteLater()
 
-    ### Signals for thread ###
+    # --- Signals for thread ---
 
     def on_update_label_degree(self, motor_id: int, text: str):
         # Original-Label updaten
@@ -589,7 +579,7 @@ if __name__ == "__main__":
 
     app = QApplication(sys.argv)
 
-    ## loading style file
+    # loading style file
     with open("resources/style.qss", "r") as style_file:
         style_str = style_file.read()
     app.setStyleSheet(style_str)
