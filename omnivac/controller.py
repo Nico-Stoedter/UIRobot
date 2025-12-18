@@ -91,7 +91,7 @@ class ControllerManager:
 
         for motor_id, value in self.last_spd_send.items():
             if self.moving_motor.get(motor_id):
-                axis_x = 0 # Contorller movement braucht diese beiden Werte # Todo controller_movemnt von diesen beiden unabhängig machen
+                axis_x = 0 # Contorller movement braucht diese beiden Werte # Todo controller_movemnt von diesen beiden unabhängig machen wenn möglich
                 axis_y = 0
                 new_spd = int(value * 2)
                 double_speed = {motor_id: new_spd}
