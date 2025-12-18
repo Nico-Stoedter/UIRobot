@@ -58,7 +58,7 @@ class MainWindow(QMainWindow):
         self.input_position: dict[int, QLineEdit] = {}
         self.label_dict: dict[int, QLabel] = {}             # Position label
         self.duplicate_label_dict: dict[int, list[QLabel]] = {}
-        self.label_list: list[QLabel] = []                  # Name label
+        self.label_name_dict: dict[int, QLabel] = {}
         self.motors = {}
     
         self.timer2 = None
@@ -240,10 +240,9 @@ class MainWindow(QMainWindow):
         self.input_position.clear()
         self.input_reset.clear()
         self.label_dict.clear()
-        self.label_list.clear()
         self.populate_widget(self.ui.scrollAreaWidgetContents, len(self.motors))
         self.populate_widget(self.ui.scrollAreaWidgetContents_2, len(self.motors))
-        self.controller_manager = ControllerManager(self.motor_manager, self.ini_manager, self.label_list, self.pop_up)
+        self.controller_manager = ControllerManager(self.motor_manager, self.ini_manager, self.label_name_dict, self.pop_up)
         self.start_controller_loop()
         self.show_toast("Connected to Comport")
 
@@ -362,10 +361,10 @@ class MainWindow(QMainWindow):
                     label = QLabel(parent_widget)
                     label.setObjectName("name_label")
                     label.setText(f"{self.ini_manager.get_value(motor_tuple[0], "Soft_Basic", "Device_Name")}")
-                    self.label_list.append(label)
                     label.setMinimumWidth(75)
                     label.setMaximumWidth(200)
                     layout.addWidget(label)
+                    self.label_name_dict[motor_tuple[0]] = label
                 elif i == 1:
                     input = QLineEdit(parent_widget)
 
@@ -405,9 +404,6 @@ class MainWindow(QMainWindow):
                         lambda: self.on_combo_selection_changed(motor_tuple[0], combo_box.currentIndex())
                         )
                     layout.addWidget(combo_box)
-            for label in self.label_list[:5]:
-                text = label.text()
-                label.setText(f"<font color='yellow'>{text}</font>")
         else:
             # Creates widget for reset page
             for i in range(column_count):

@@ -11,18 +11,20 @@ pygame.joystick.init()
 
 class ControllerManager:
 
-    def __init__(self, motor_manager: "MotorManager", ini_manager, label_list, pop_up, **kwargs):      
+    def __init__(self, motor_manager: "MotorManager", ini_manager, label_name_list, pop_up, **kwargs):      
         self.setting = False            # If false controller has axis 1-5 and 6-10 otherwise
         self.double_speed = False
 
         self.pop_up = pop_up
         self.ini_manager = ini_manager
         self.motor_manager = motor_manager
-        self.label_list = label_list
+        self.label_name_list = label_name_list
         self.joystick = None
         self.motors: dict[int, "Motor"] = self.motor_manager.motors
         self.moving_motor: dict[int, bool] = {key: False for key in self.motors}
         self.last_spd_send: dict[int, int] = {key: 0 for key in self.motors}
+
+        self.switch_label_color()
 
     def controller(self) -> None:
         '''Manages Joystick Inputs and Calls Joystick Funktions by itself'''
@@ -203,26 +205,24 @@ class ControllerManager:
                 return id
             
     def switch_label_color(self) -> None:
-        '''Switches the labels on the front end''' #Todo funktioniert noch nicht richtig
-        for label in self.label_list:
+        """Switches the labels on the front end"""
+    
+        for motor_id, label in self.label_name_list.items():
+            motor = self.motors.get(motor_id)
+            if not motor:
+                continue  # Sicherheit, falls Motor nicht existiert
+            
+            joystick_axis = motor.joystick_axis
+            is_valid_axis = joystick_axis != 0 and joystick_axis <= 5
+    
+            # Farbentscheidung
             if self.setting:
-                if label in self.label_list[5:]:
-                    text = label.text()
-                    text = ControllerManager.clear_text(text)
-                    label.setText(f"<font color='yellow'>{text}</font>")
-                else:
-                    text = label.text()
-                    text = ControllerManager.clear_text(text)
-                    label.setText(f"<font color='white'>{text}</font>")
+                color = "white" if is_valid_axis else "yellow"
             else:
-                if label in self.label_list[:5]:
-                    text = label.text()
-                    text = ControllerManager.clear_text(text)
-                    label.setText(f"<font color='yellow'>{text}</font>")
-                else:
-                    text = label.text()
-                    text = ControllerManager.clear_text(text)
-                    label.setText(f"<font color='white'>{text}</font>")
+                color = "yellow" if is_valid_axis else "white"
+    
+            text = ControllerManager.clear_text(label.text())
+            label.setText(f"<font color='{color}'>{text}</font>")
 
     def add_joy(self):
         '''Adds Joystick'''
