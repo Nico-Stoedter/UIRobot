@@ -34,10 +34,10 @@ class Worker(QObject):
                 cur_pos = motor.get_motor_pos()
                 unit_pos = round(self.motor_manager.steps_to_unit(motor_id, cur_pos), 2)
 
-                if motor.dev_type in [2,3]:
+                if motor.dev_type in [2,3,4]:
                     unit_pos = round(unit_pos % 360, 3)
 
-                if motor_id in [74,75]:
+                if motor_id in [74,75]: # real-time range check for special x/y 
                     if self.check_x_y_movement(cur_pos, motor_id):
                         if not self.x_y_popup_sent:
                             self.popup_signal.emit("x and y motors out of range")
