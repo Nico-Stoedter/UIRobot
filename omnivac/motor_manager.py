@@ -295,10 +295,21 @@ class MotorManager:
     def controller_movement(self, axis_x, axis_y, motor_speeds: dict[int, int]) -> None:
         '''Manages movement with controller'''
 
+        # ---- X/Y EINMALIG behandeln ----
+        if 5 in motor_speeds or 6 in motor_speeds:
+            spd_x = motor_speeds.get(5)
+            spd_y = motor_speeds.get(6)
+
+            self.x_y_controller_movement(spd_x, spd_y)
+
+            # Danach aus dem Dict entfernen
+            motor_speeds.pop(5, None)
+            motor_speeds.pop(6, None)
+
         for motor_id, spd in motor_speeds.items():
             msg = ""
 
-            if motor_id == self.r1_motor_id:
+            if motor_id == self.r1_motor_id: # R1 movement
                 r1_spd = motor_speeds.get(self.r1_motor_id)
                 self.special_motor.dual_r1_r3_controller(r1_spd)
 
@@ -336,23 +347,50 @@ class MotorManager:
                                 r3_motor.r3_org_pos = cur_pos
                                 break  # Encoder stabil -> fertig
 
-            elif motor_id in [self.rot_motor_id, self.trn_motor_id]:
+            elif motor_id in [self.rot_motor_id, self.trn_motor_id]: # rot/trn movement
                 spd = (motor_speeds.get(self.rot_motor_id) 
                         if motor_id == self.rot_motor_id 
                         else motor_speeds.get(self.trn_motor_id))
                 self.rot_tran_motor.rot_tran_movement(motor_id, spd, True)  
 
-            elif motor_id in [self.x_motor_id, self.y_motor_id]: 
+            elif motor_id in [self.x_motor_id, self.y_motor_id]: # special x/y movement
                 spd_x = motor_speeds.get(self.x_motor_id)
                 spd_y = motor_speeds.get(self.y_motor_id)
                 self.x_y_motors.x_y_controller_movement(axis_x, axis_y, spd_x, spd_y)
-
             else:
                 if motor_id != None:
                     self.standard_controller_movement(motor_id, spd) 
 
             if msg != "":
                 self.transport.write(msg.encode('utf-8'), True)
+
+    def x_y_controller_movement(self, spd_x, spd_y):
+        '''Manages movement for regular x/y axis'''
+        motor_x = self.motors.get(5)
+        motor_y = self.motors.get(6)
+
+        x_min_pos_stp = self.unit_to_steps(5, motor_x.min_position)
+        x_max_pos_stp = self.unit_to_steps(5, motor_x.max_position)
+
+        y_min_pos_stp = self.unit_to_steps(6, motor_y.min_position)
+        y_max_pos_stp = self.unit_to_steps(6, motor_y.max_position)
+
+        if spd_x < -200:
+            x_direction = x_min_pos_stp
+        elif spd_x > 200:
+            x_direction = x_max_pos_stp
+        else:
+            x_direction = 0
+
+        if spd_y < -200:
+            y_direction = y_min_pos_stp
+        elif spd_y > 200:
+            y_direction = y_max_pos_stp
+        else:
+            y_direction = 0
+
+        msg = f"ADR=5;SPD{spd_x};QEC{x_direction};ADR=6;SPD{spd_y};QEC{y_direction};"
+        self.transport.write(msg.encode('utf-8'), True)
 
     def standard_controller_movement(self, motor_id: int, spd: float) -> None: # Todo wie message generiert werden kann man bestimmt verbessern
         '''Handles regular controller movement'''

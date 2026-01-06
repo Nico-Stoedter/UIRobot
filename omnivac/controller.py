@@ -23,12 +23,16 @@ class ControllerManager:
         self.motors: dict[int, "Motor"] = self.motor_manager.motors
         self.moving_motor: dict[int, bool] = {key: False for key in self.motors}
         self.last_spd_send: dict[int, int] = {key: 0 for key in self.motors}
+        self.last_axis = {}
+        self.last_motor_speeds = None
 
         self.switch_label_color()
 
     def controller(self) -> None:
         '''Manages Joystick Inputs and Calls Joystick Funktions by itself'''
         for event in pygame.event.get(): # All Joystick inputs are in pygame.event
+
+            #print(event)
 
             axis_x = 0
             axis_y = 0
@@ -58,11 +62,18 @@ class ControllerManager:
 
             # --- Joystick Managment ---
             elif event.type == pygame.JOYAXISMOTION:    # Joystick Motion
+
+                # --- Axis Filter ---
+                last = self.last_axis.get(event.axis, 0.0)
+                if abs(event.value - last) < 0.05:
+                    continue 
+                self.last_axis[event.axis] = event.value
+
                 parsed_event_code = self.gamepad_parser(event.axis)
                 motor_id = self.find_motor_with_axis(parsed_event_code)
 
-                if motor_id == None:
-                    break
+                if motor_id is None:
+                    continue
 
                 motor_speeds = self.joystick_motion(event.axis, motor_id)                      
 
@@ -70,7 +81,10 @@ class ControllerManager:
                     axis_x = round(self.joystick.get_axis(0), 2)
                     axis_y = round(self.joystick.get_axis(1) * -1, 2)
   
-                self.motor_manager.controller_movement(axis_x, axis_y, motor_speeds)
+                # --- Nur senden, wenn sich etwas geändert hat ---
+                if motor_speeds != self.last_motor_speeds:
+                    self.motor_manager.controller_movement(axis_x, axis_y, motor_speeds)
+                    self.last_motor_speeds = motor_speeds
 
     # --- Button Events ---
 
@@ -120,6 +134,14 @@ class ControllerManager:
         spd_rpm: float = float(self.ini_manager.get_value(motor_id, "Soft_Basic", "Max_Speed(rpm)"))
         spd_stepps = max(-32768, min(int(spd_rpm / 60 * 2000), 32767))
 
+        # Calculates speeds for fluid normal x/y movment
+        x_motor_n = self.motors.get(5)
+        y_motor_n = self.motors.get(6)
+        x_rpm_n = x_motor_n.max_speed
+        y_rpm_n = y_motor_n.max_speed
+        x_spd_n = max(-32768, min(int(x_rpm_n / 60 * 2000), 32767))
+        y_spd_n = max(-32768, min(int(y_rpm_n / 60 * 2000), 32767))
+
         spd_x = spd_y = spd_z = 0
 
         x_id = y_id = z_id = None
@@ -161,8 +183,12 @@ class ControllerManager:
             self.moving_motor[x_id] = x_value > 0
             self.moving_motor[y_id] = y_value > 0
 
-            spd_x = factor * int((spd_stepps / 2) * x_value)
-            spd_y = factor * int((spd_stepps / 2) * y_value)
+            if motor_id in [5,6]:
+                spd_x = factor * int((x_spd_n / 2) * x_value)
+                spd_y = factor * int((y_spd_n / 2) * y_value)
+            else:
+                spd_x = factor * int((spd_stepps / 2) * x_value)
+                spd_y = factor * int((spd_stepps / 2) * y_value)
 
             motor_speeds[x_id] = spd_x
             self.last_spd_send[x_id] = spd_x

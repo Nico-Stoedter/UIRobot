@@ -171,6 +171,10 @@ def interpret_data(header, message_id, data_bytes):
     return results
 
 def get_message(data):
+
+    if len(data) < 4:
+        raise ValueError(f"Invalid message length: {len(data)}")
+    
     # Header
     header = hex(data[0])[2:].upper()  # Header als Hexadezimalwert
     # Controller ID
