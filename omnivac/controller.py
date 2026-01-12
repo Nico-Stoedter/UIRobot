@@ -134,13 +134,24 @@ class ControllerManager:
         spd_rpm: float = float(self.ini_manager.get_value(motor_id, "Soft_Basic", "Max_Speed(rpm)"))
         spd_stepps = max(-32768, min(int(spd_rpm / 60 * 2000), 32767))
 
-        # Calculates speeds for fluid normal x/y movment
-        x_motor_n = self.motors.get(5)
+        # Calculates speeds for a fluid normal x/y movment
+        x_motor_n = self.motors.get(5) # normal x/y
         y_motor_n = self.motors.get(6)
-        x_rpm_n = x_motor_n.max_speed
-        y_rpm_n = y_motor_n.max_speed
-        x_spd_n = max(-32768, min(int(x_rpm_n / 60 * 2000), 32767))
-        y_spd_n = max(-32768, min(int(y_rpm_n / 60 * 2000), 32767))
+
+        x_motor_s = self.motors.get(self.motor_manager.x_motor_id) # special x/y
+        y_motor_s = self.motors.get(self.motor_manager.y_motor_id)
+
+        if x_motor_n != None and y_motor_n != None:
+            x_rpm_n = x_motor_n.max_speed
+            y_rpm_n = y_motor_n.max_speed
+            x_spd_n = max(-32768, min(int(x_rpm_n / 60 * 2000), 32767))
+            y_spd_n = max(-32768, min(int(y_rpm_n / 60 * 2000), 32767))
+
+        if x_motor_s != None and y_motor_s != None:
+            x_rpm_s = x_motor_s.max_speed
+            y_rpm_s = y_motor_s.max_speed
+            x_spd_s = max(-32768, min(int(x_rpm_s / 60 * 2000), 32767))
+            y_spd_s = max(-32768, min(int(y_rpm_s / 60 * 2000), 32767)) 
 
         spd_x = spd_y = spd_z = 0
 
@@ -183,9 +194,13 @@ class ControllerManager:
             self.moving_motor[x_id] = x_value > 0
             self.moving_motor[y_id] = y_value > 0
 
+            # Calculating speeds for nicer x/y movement
             if motor_id in [5,6]:
                 spd_x = factor * int((x_spd_n / 2) * x_value)
                 spd_y = factor * int((y_spd_n / 2) * y_value)
+            elif motor_id in [self.motor_manager.x_motor_id, self.motor_manager.y_motor_id]:
+                spd_x = factor * int((x_spd_s / 2) * x_value)
+                spd_y = factor * int((y_spd_s / 2) * y_value)
             else:
                 spd_x = factor * int((spd_stepps / 2) * x_value)
                 spd_y = factor * int((spd_stepps / 2) * y_value)

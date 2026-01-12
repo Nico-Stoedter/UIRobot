@@ -283,12 +283,6 @@ class XYLimitedMotors: #ToDo Kommentare einfügen; ausfürhlich testen
         x_pos = self.manager.steps_to_unit(self.x_motor_id, x_pos_steps)
         y_pos = self.manager.steps_to_unit(self.y_motor_id, y_pos_steps)
 
-        # --- Need to match spd if gearfactor is different ---
-        if gradual_spd_x >= gradual_spd_y:
-            gradual_spd_y = int(gradual_spd_x * 20)
-        else:
-            gradual_spd_x = int(gradual_spd_y / 20)
-
         # --- Circular Motion ---
         # Does a simple predicition to avoid crossing limits
         if axis_x > 0:

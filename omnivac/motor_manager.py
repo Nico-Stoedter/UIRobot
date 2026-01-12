@@ -295,8 +295,9 @@ class MotorManager:
     def controller_movement(self, axis_x, axis_y, motor_speeds: dict[int, int]) -> None:
         '''Manages movement with controller'''
 
-        # ---- X/Y EINMALIG behandeln ----
-        if 5 in motor_speeds or 6 in motor_speeds:
+        # ---- X/Y Normal Movement ----
+        # Outside of loop to avoid Runtime error
+        if 5 in motor_speeds or 6 in motor_speeds: 
             spd_x = motor_speeds.get(5)
             spd_y = motor_speeds.get(6)
 
@@ -305,6 +306,16 @@ class MotorManager:
             # Danach aus dem Dict entfernen
             motor_speeds.pop(5, None)
             motor_speeds.pop(6, None)
+
+        # ---- X/Y Special Movement ----
+        # Outside of loop to avoid Runtime error
+        if self.x_motor_id in motor_speeds or self.y_motor_id in motor_speeds: 
+            spd_x = motor_speeds.get(self.x_motor_id)
+            spd_y = motor_speeds.get(self.y_motor_id)
+            self.x_y_motors.x_y_controller_movement(axis_x, axis_y, spd_x, spd_y)
+
+            motor_speeds.pop(self.x_motor_id, None)
+            motor_speeds.pop(self.y_motor_id, None)
 
         for motor_id, spd in motor_speeds.items():
             msg = ""
@@ -352,11 +363,6 @@ class MotorManager:
                         if motor_id == self.rot_motor_id 
                         else motor_speeds.get(self.trn_motor_id))
                 self.rot_tran_motor.rot_tran_movement(motor_id, spd, True)  
-
-            elif motor_id in [self.x_motor_id, self.y_motor_id]: # special x/y movement
-                spd_x = motor_speeds.get(self.x_motor_id)
-                spd_y = motor_speeds.get(self.y_motor_id)
-                self.x_y_motors.x_y_controller_movement(axis_x, axis_y, spd_x, spd_y)
             else:
                 if motor_id != None:
                     self.standard_controller_movement(motor_id, spd) 
@@ -375,7 +381,7 @@ class MotorManager:
         y_min_pos_stp = self.unit_to_steps(6, motor_y.min_position)
         y_max_pos_stp = self.unit_to_steps(6, motor_y.max_position)
 
-        if spd_x < -200:
+        if spd_x < -200: # deadzone
             x_direction = x_min_pos_stp
         elif spd_x > 200:
             x_direction = x_max_pos_stp
