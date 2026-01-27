@@ -41,3 +41,4 @@ Thumbs.db
 
 # Sonstig
 configs/
+omnivac/__pycache__/
