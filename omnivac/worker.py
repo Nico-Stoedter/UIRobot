@@ -25,6 +25,9 @@ class Worker(QObject):
         self.triggered_motors = set()
         self.last_pos: dict[int, None|float] = {motor_id: None for motor_id in motors}
 
+    def truncate(self, value: float, n: int) -> str:
+        return f"{value:.{n}f}"
+
     @Slot()
     def run(self):
         '''Starts a thread which manages QEC; requests, security_postion defined in .ini'''
@@ -32,7 +35,7 @@ class Worker(QObject):
             for motor_id, motor in self.motors.items():
                 self.motor_manager.request_motor_position(motor_id)
                 cur_pos = motor.get_motor_pos()
-                unit_pos = round(self.motor_manager.steps_to_unit(motor_id, cur_pos), 2)
+                unit_pos = float(self.truncate(self.motor_manager.steps_to_unit(motor_id, cur_pos), 3))          
 
                 if motor.dev_type in [2,3,4]:
                     unit_pos = round(unit_pos % 360, 3)
@@ -50,9 +53,11 @@ class Worker(QObject):
                 if unit_pos == -0.0: # To avoid -0.0 in GUI 
                     unit_pos = 0.0
 
+                unit_pos = self.truncate(self.motor_manager.steps_to_unit(motor_id, cur_pos), 3) 
+
                 text = f"{unit_pos} {motor.positon_unit}"
 
-                self.check_security_pos(motor, motor_id, unit_pos)
+                self.check_security_pos(motor, motor_id, float(unit_pos))
 
                 self.update_signal.emit(motor_id, text)
 
@@ -93,7 +98,7 @@ class Worker(QObject):
         self.last_pos[motor_id] = unit_pos
 
         # checking if unit_pos is in pos_list
-        tolerance = 0.1
+        tolerance = 5
         in_tolerance = False  # Bool for if motor inside tolerance
 
         for value, txt, dir_flag in zip(pos_list, text_list, dir_list):

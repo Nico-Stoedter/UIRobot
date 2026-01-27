@@ -15,6 +15,7 @@ from PySide6.QtCore import (
 )
 from PySide6.QtGui import QRegularExpressionValidator, QIcon
 from PySide6.QtWebEngineWidgets import QWebEngineView
+from serial import SerialException
 from sidebar import Ui_MainWindow
 from motor_manager import MotorManager
 from ini_manager import IniManager
@@ -229,7 +230,12 @@ class MainWindow(QMainWindow):
         parity = self.ui.combo_parity.currentText()
         stop = self.ui.combo_stop.currentText()
 
-        transport = comports_manager.initializePort(port, baud, parity, stop, byte)
+        try:
+            transport = comports_manager.initializePort(port, baud, parity, stop, byte)
+        except SerialException as e:
+            self.show_toast("Selected port is already in use")
+            return
+            
         self.motor_manager = MotorManager(transport)
         self.worker.motor_manager = self.motor_manager
         self.motors = self.motor_manager.check_feedback_addresses()
@@ -511,10 +517,6 @@ class MainWindow(QMainWindow):
             widget = self.input_position.get(id)
             widget.setText(value)
 
-    def truncate(self, f: float, n: int) -> float:
-        truncated = int(f * 10**n) / 10**n
-        return f"{truncated:.3f}"
-
     def start_controller_loop(self) -> None:
         if self.timer2 is not None:
             if self.timer2.isActive():
@@ -524,7 +526,7 @@ class MainWindow(QMainWindow):
 
         self.timer2 = QTimer(self)
         self.timer2.timeout.connect(self.controller_manager.controller)
-        self.timer2.start(50)
+        self.timer2.start(20)
 
     def clear_layout(self, container_widget) -> None:
         layout = container_widget.layout()

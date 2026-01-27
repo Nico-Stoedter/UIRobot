@@ -381,16 +381,16 @@ class MotorManager:
         y_min_pos_stp = self.unit_to_steps(6, motor_y.min_position)
         y_max_pos_stp = self.unit_to_steps(6, motor_y.max_position)
 
-        if spd_x < -200: # deadzone
+        if spd_x < 0:
             x_direction = x_min_pos_stp
-        elif spd_x > 200:
+        elif spd_x > 0:
             x_direction = x_max_pos_stp
         else:
             x_direction = 0
 
-        if spd_y < -200:
+        if spd_y < 0:
             y_direction = y_min_pos_stp
-        elif spd_y > 200:
+        elif spd_y > 0:
             y_direction = y_max_pos_stp
         else:
             y_direction = 0

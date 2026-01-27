@@ -31,8 +31,7 @@ class ControllerManager:
     def controller(self) -> None:
         '''Manages Joystick Inputs and Calls Joystick Funktions by itself'''
         for event in pygame.event.get(): # All Joystick inputs are in pygame.event
-
-            #print(event)
+            print(event)
 
             axis_x = 0
             axis_y = 0
@@ -63,18 +62,20 @@ class ControllerManager:
             # --- Joystick Managment ---
             elif event.type == pygame.JOYAXISMOTION:    # Joystick Motion
 
-                # --- Axis Filter ---
-                last = self.last_axis.get(event.axis, 0.0)
-                if abs(event.value - last) < 0.05:
-                    continue 
-                self.last_axis[event.axis] = event.value
-
                 parsed_event_code = self.gamepad_parser(event.axis)
                 motor_id = self.find_motor_with_axis(parsed_event_code)
 
                 if motor_id is None:
                     continue
 
+                # --- Axis Filter + Deadzone ---
+                motor = self.motors.get(motor_id)
+                last = self.last_axis.get(event.axis, 0.0)
+                if abs(event.value - last) < 0.025 and event.value >= motor.deadzone:
+                    continue 
+                self.last_axis[event.axis] = event.value
+
+                # --- Calculate values for command ---
                 motor_speeds = self.joystick_motion(event.axis, motor_id)                      
 
                 if motor_id in[74,75]: # Hier späte gucken ob einfacher geht
@@ -87,6 +88,11 @@ class ControllerManager:
                     self.last_motor_speeds = motor_speeds
 
     # --- Button Events ---
+    def add_joy(self):
+        '''Adds Joystick'''
+        joystick = pygame.joystick.Joystick(2)
+        joystick.init()
+        print(f"Controller erkannt: {joystick.get_name()}")
 
     def event_controller_connected(self, event):
         '''Manages adding joystick'''
@@ -264,12 +270,6 @@ class ControllerManager:
 
             text = ControllerManager.clear_text(label.text())
             label.setText(f"<font color='{color}'>{text}</font>")
-
-    def add_joy(self):
-        '''Adds Joystick'''
-        joystick = pygame.joystick.Joystick(2)
-        joystick.init()
-        print(f"Controller erkannt: {joystick.get_name()}")
 
     def gamepad_parser(self, input: int) -> str:
         ''' Parses Gamepad axis to .ini axis'''

@@ -40,14 +40,9 @@ class TeleskopArm:
     def r3_movement(self, spd) -> None:
         '''Sends message for r3 motor and saves new org for dual r1_r3 movement'''
         motor = self.manager.motors.get(self.r3_motor_id)
-        spd_rpm = motor.max_speed
-
-        # --- Calculating deadzone --- #ToDo checken, ob sowas überhaupt nötig ist
-        spd_stepps = max(-32768, min(int(spd_rpm / 60 * 2000), 32767))
-        deadzone = int(spd_stepps * 0.1)
 
         # --- Construct Message ---
-        if spd < -deadzone:
+        if spd < 0:
             min_pos = motor.min_position
             steps_min_pos = self.manager.unit_to_steps(self.r3_motor_id, min_pos)
 
@@ -55,7 +50,7 @@ class TeleskopArm:
 
             msg = f'ADR={self.r3_motor_id};SPD{spd};QEC{steps_min_pos};'
 
-        elif spd > deadzone:
+        elif spd > 0:
             max_pos = motor.max_position
             steps_max_pos = self.manager.unit_to_steps(self.r3_motor_id, max_pos)
 
@@ -78,13 +73,8 @@ class TeleskopArm:
         # spd == r1 absolute speed
         r1_spd_rel = int(spd * pos_factor)
 
-        # --- Calculate deadzone --- 
-        spd_rpm: float = r1.max_speed
-        spd_stepps = max(-32768, min(int(spd_rpm / 60 * 2000), 32767))
-        deadzone = int(spd_stepps * 0.1)
-
         # --- Construct Message ---
-        if spd < -deadzone and (r1.cur_rotation_dir == None or r1.cur_rotation_dir): 
+        if spd < 0 and (r1.cur_rotation_dir == None or r1.cur_rotation_dir): 
                 min_pos_r1 = r1.min_position
                 steps_min_pos_r1 = self.manager.unit_to_steps(self.r1_motor_id, min_pos_r1)
 
@@ -93,7 +83,7 @@ class TeleskopArm:
                 msg = f'ADR={self.r1_motor_id};SPD{spd};QEC{steps_min_pos_r1};'
                 msg += f'ADR={self.r3_motor_id};SPD{r1_spd_rel};QEC{steps_min_pos_r1};'
 
-        elif spd > deadzone and (r1.cur_rotation_dir == None or not(r1.cur_rotation_dir)): 
+        elif spd > 0 and (r1.cur_rotation_dir == None or not(r1.cur_rotation_dir)): 
             max_pos_r1 = r1.max_position
             steps_max_pos = self.manager.unit_to_steps(self.r1_motor_id, max_pos_r1)
 
@@ -102,7 +92,7 @@ class TeleskopArm:
             msg = f'ADR={self.r1_motor_id};SPD{spd};QEC{steps_max_pos};'
             msg += f'ADR={self.r3_motor_id};SPD{r1_spd_rel};QEC{steps_max_pos};'
         else:
-            # Stop, if spd in deadzone
+            # Stop, if spd = 0
             stop_step = "-1" if r1.cur_rotation_dir is True else "1"
             msg = f"ADR={self.r1_motor_id};SPD0;STP{stop_step};"
             msg += f"ADR={self.r3_motor_id};SPD0;STP{stop_step};"

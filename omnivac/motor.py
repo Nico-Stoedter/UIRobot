@@ -16,6 +16,7 @@ class Motor():
         self._position_unit = self.ini_manager.get_value(id, 'Soft_Basic', 'Position_Unit')
 
         self._joystick_axis = self.ini_manager.get_value(id, 'Soft_Joys', 'Joystick_Axis')
+        self._deadzone = self.ini_manager.get_value(id, 'Soft_Joys', 'Deadzone')
 
         self._encoder: bool = self.ini_manager.get_value_bool(id, 'Hard_Info', 'Ava_Encoder')
 
@@ -78,6 +79,10 @@ class Motor():
     @property
     def joystick_axis(self) -> int:
         return int(self._joystick_axis)
+    
+    @property
+    def deadzone(self) -> float:
+        return float(self._deadzone)
     
     @property
     def encoder(self) -> bool:

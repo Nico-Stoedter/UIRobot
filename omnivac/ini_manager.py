@@ -108,6 +108,7 @@ class IniManager():
         # Sektion: Soft_Joys
         config["Soft_Joys"] = {
             "Joystick_Axis": "0",
+            "Deadzone": "0.05",
         }
 
         # Sektion: Soft_Moti
@@ -141,20 +142,14 @@ class IniManager():
             "Name1": "Home",
             "Value1": "0"
         }
-        # Sektion: R3_Values
+        # Sektion: Security Position
         config["Security_Positions"] = {
         }
-
-        # Sektion: R3_Values
-        config["R3_Values"] = {
-            "ORG": "0"
-        }
-
-        file_name = f"DevId_{motor_id}.ini"
-        with open(file_name, 'w', encoding='utf-8') as configfile:
+        file_path = os.path.join(self.configs_dir, f"DevId_{motor_id}.ini")
+        with open(file_path, 'w', encoding='utf-8') as configfile:
             config.write(configfile, space_around_delimiters=False)
 
-        print(f"[IniManager] .ini for motor {motor_id} created: {file_name}")
+        print(f"[IniManager] .ini for motor {motor_id} created: {file_path}")
     
     def get_preset_positions_from_motor(self, motor_id) -> dict[str, str]:
             file_path = self.get_file_path(motor_id)
@@ -254,6 +249,7 @@ class IniManager():
             },
             "Soft_Joys": {
                 "Joystick_Axis": int,
+                "Deadzone": float,
             },
             "Soft_Moti": {
                 "Acceleration_Rate(ms)": float,
