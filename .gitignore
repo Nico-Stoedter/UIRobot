@@ -43,3 +43,4 @@ Thumbs.db
 configs/
 omnivac/__pycache__/
 log.txt
+tests/
