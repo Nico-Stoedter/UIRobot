@@ -74,8 +74,7 @@ class MainWindow(QMainWindow):
         self.worker.update_signal.connect(self.on_update_label_degree, Qt.QueuedConnection)
         self.worker.popup_signal.connect(self.show_popup)
         self.worker.stop_motor_signal.connect(self.stop_motor)
-        self.worker_thread.started.connect(self.worker.run)
-        self.worker_thread.start()
+        self.worker_thread.started.connect(self.worker.run)      
 
         # --- Logic for the Comport Page ---
 
@@ -256,6 +255,8 @@ class MainWindow(QMainWindow):
             self.motor_manager.start_config_motor(id)
             time.sleep(0.1)
 
+        self.worker_thread.start()  
+
     # --- Layout for motor Page + reset page ---
 
     def populate_widget(self, scroll_widget, motor_rows: int):
@@ -390,7 +391,7 @@ class MainWindow(QMainWindow):
                     label = QLabel(parent_widget)
                     label.setObjectName("position_label")
                     first_pos = motor_tuple[1].get_motor_pos()
-                    label.setText(f"{first_pos} {motor_tuple[1].positon_unit}")
+                    label.setText(f"{first_pos} {motor_tuple[1].position_unit}")
                     label.setMinimumWidth(100)
                     label.setMaximumWidth(300)
                     layout.addWidget(label)
@@ -440,7 +441,7 @@ class MainWindow(QMainWindow):
                     if original_label is None:
                         # Fallback (shouldn't happen normally)
                         first_pos = motor_tuple[1].get_motor_pos()
-                        text = f"{first_pos} {motor_tuple[1].positon_unit}"
+                        text = f"{first_pos} {motor_tuple[1].position_unit}"
                     else:
                         text = original_label.text()
 
@@ -473,7 +474,7 @@ class MainWindow(QMainWindow):
         else:
             unit = float((steps / 3200) * 360 * pos_factor)
 
-        return  unit
+        return unit
 
     def on_confirm_btn_clicked(self) -> None:
         input_list: list[tuple[int, float]] = []

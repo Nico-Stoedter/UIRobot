@@ -448,12 +448,18 @@ class MotorManager:
         else:
             icf = 2
 
-        msg = f"ADR={id};ICF{icf};MAC{mac};MDE{mde};MMS{mms};MMD{mmd};BLC{blc};CUR{cur};ACR{acr};MCS{mcs};"
+        #msg = f"ADR={id};ICFx 0{icf} 00;"
 
-        if motor.dev_type in [3,4]:
-            one_round = self.unit_to_steps(id, 360.0)
-            msg += f"ORG{one_round};"
+        #if motor.dev_type in [3,4]:
+        #    one_round = self.unit_to_steps(id, 360.0)
+        #    msg += f"ORG{one_round};"
 
+        #self.transport.write(msg.encode("utf-8"), True)
+        #self.read_message()
+        
+        #time.sleep(0.20)
+
+        msg = f"ADR={id};MAC{mac};MDE{mde};MMS{mms};MMD{mmd};BLC{blc};CUR{cur};ACR{acr};MCS{mcs};"
         self.transport.write(msg.encode("utf-8"), True)
         self.read_message()
 

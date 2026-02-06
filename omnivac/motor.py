@@ -45,6 +45,17 @@ class Motor():
         
         self.motor_status.update(status) #updates the first values after initialization
 
+        self.security_pos_true = self.security_values_true = {
+            k: v
+            for k, v in self.ini_manager.get_security_pos(id).items()
+            if v[2] is True
+        }
+        self.security_pos_false = {
+            k: v
+            for k, v in self.ini_manager.get_security_pos(id).items()
+            if v[2] is False
+        }
+
     def __repr__(self) -> str: # Nur fürs debuggen hilfreich
         return f'MotorID:{self._id}'
     
@@ -73,7 +84,7 @@ class Motor():
         return float(self._position_factor)
     
     @property
-    def positon_unit(self) -> str:
+    def position_unit(self) -> str:
         return self._position_unit
     
     @property

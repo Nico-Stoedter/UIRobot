@@ -1,4 +1,5 @@
 import math
+import time
 
 from PySide6.QtCore import (Signal, Slot,QThread, 
                             QObject)
@@ -24,6 +25,7 @@ class Worker(QObject):
         # Set to remember, which motors triggered a pop-up
         self.triggered_motors = set()
         self.last_pos: dict[int, None|float] = {motor_id: None for motor_id in motors}
+        self.last_time = 0
 
     def truncate(self, value: float, n: int) -> str:
         return f"{value:.{n}f}"
@@ -55,13 +57,12 @@ class Worker(QObject):
 
                 unit_pos = self.truncate(self.motor_manager.steps_to_unit(motor_id, cur_pos), 3) 
 
-                text = f"{unit_pos} {motor.positon_unit}"
+                text = f"{unit_pos} {motor.position_unit}"
 
                 self.check_security_pos(motor, motor_id, float(unit_pos))
 
                 self.update_signal.emit(motor_id, text)
 
-            QThread.msleep(50)
 
     def check_x_y_movement(self, cur_pos, motor_id) -> bool:
         '''Checks the special x/y movement in real time and returns a False if boundary crossed'''
@@ -81,38 +82,48 @@ class Worker(QObject):
         
         return False
 
-    def check_security_pos(self, motor, motor_id, unit_pos) -> None:
-        '''Checks if the current postion is a Security Position defined in the .ini'''
-        pos_list = self.get_security_pos(motor)
-        text_list = self.get_security_text(motor)
-        dir_list = self.get_security_dir(motor)
+    def check_security_pos(self, motor: "Motor", motor_id, unit_pos: float) -> None:
+        sec_pos_true = motor.security_pos_true
+        sec_pos_false = motor.security_pos_false
 
         last = self.last_pos.get(motor_id)
 
-        movement_positive = (
-                            True if last is None
-                            else None if unit_pos - last == 0
-                            else unit_pos - last > 0
-                            )
-            
-        self.last_pos[motor_id] = unit_pos
+        # --- Bewegungsrichtung
+        if last is None:
+            movement_positive = None
+        else:
+            delta = unit_pos - last
+            movement_positive = None if delta == 0 else delta > 0
+        
+        # --- Security-Dictionary auswählen
+        if movement_positive is True:
+            sec_dict = sec_pos_true
+        elif movement_positive is False:
+            sec_dict = sec_pos_false
+        else:
+            sec_dict = {}
 
-        # checking if unit_pos is in pos_list
-        tolerance = 5
-        in_tolerance = False  # Bool for if motor inside tolerance
+        motor_rpm = motor.max_speed
+        motor_spd = max(-32768, min(int(motor_rpm / 60 * 2000), 32767))
+        motor_gear = motor.position_factor
+        tolerance_steps = motor_spd * 0.2  # 0.2 -> thread_rate + aprox. execute time + aprox. jitter
+        tolerance = max(2.0, (tolerance_steps * motor_gear * 360 / 2000))
 
-        for value, txt, dir_flag in zip(pos_list, text_list, dir_list):
-            if abs(unit_pos - value) < tolerance:
+        in_tolerance = False
+        for pos, txt, dir_flag in sec_dict.values():
+            if abs(unit_pos - pos) < tolerance:
                 in_tolerance = True
                 # Pop-up if motor not triggered and direction correct
                 if (motor_id not in self.triggered_motors) and ((dir_flag and movement_positive) or (not dir_flag and not movement_positive)):
                     self.stop_motor_signal.emit(motor_id)
                     self.popup_signal.emit(txt)
                     self.triggered_motors.add(motor_id)
-
+        
         # If motor outside of tolerance, reset triggered motor
-        if not in_tolerance and motor_id in self.triggered_motors:
+        if not in_tolerance and motor_id in self.triggered_motors and movement_positive != None:
             self.triggered_motors.remove(motor_id)
+
+        self.last_pos[motor_id] = unit_pos
 
     def stop(self):
         self.running = False # Signal to GUI
