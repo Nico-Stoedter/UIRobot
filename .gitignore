@@ -44,4 +44,5 @@ configs/*
 !configs/.gitkeep
 omnivac/__pycache__/
 log.txt
+werte.txt
 tests/
