@@ -1,7 +1,8 @@
 import sys
-import comports_manager
 import os
 import time
+
+from omnivac import comports_manager
 
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QPushButton, 
@@ -16,13 +17,13 @@ from PySide6.QtCore import (
 from PySide6.QtGui import QRegularExpressionValidator, QIcon
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from serial import SerialException
-from sidebar import Ui_MainWindow
-from motor_manager import MotorManager
-from ini_manager import IniManager
-from controller import ControllerManager
-from worker import Worker
-from toast import Toast
-from pop_up import PopUp
+from omnivac.sidebar import Ui_MainWindow
+from omnivac.motor_manager import MotorManager
+from omnivac.ini_manager import IniManager
+from omnivac.controller import ControllerManager
+from omnivac.worker import Worker
+from omnivac.toast import Toast
+from omnivac.pop_up import PopUp
 
 from typing import TYPE_CHECKING
 
@@ -137,6 +138,7 @@ class MainWindow(QMainWindow):
     # --- Functions for Sidbars + misc ---
     
     def show_toast(self, text: str) -> None:
+        # Toast in eigene .py packen
         toast = Toast(f'{text}', self)
 
         toast.adjustSize()
@@ -218,7 +220,7 @@ class MainWindow(QMainWindow):
         QTimer.singleShot(3000, lambda: self.ui.btn_connect.setEnabled(True))
         # Current connection closes if existing
         if hasattr(self, 'motor_manager') and self.motor_manager is not None:
-                self.motor_manager.transport.close()
+                self.motor_manager.transport.close() #signal einfügen
                 self.motor_manager = None
                 print("closed prior connection")
 
@@ -236,7 +238,7 @@ class MainWindow(QMainWindow):
             return
             
         self.motor_manager = MotorManager(transport)
-        self.worker.motor_manager = self.motor_manager
+        self.worker.motor_manager = self.motor_manager  #signal einfügen
         self.motors = self.motor_manager.check_feedback_addresses()
         self.worker.motors = self.motors
 

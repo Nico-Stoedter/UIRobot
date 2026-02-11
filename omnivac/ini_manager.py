@@ -3,7 +3,7 @@ import os
 import sys
 import ast
 
-from pop_up import PopUp
+from omnivac.pop_up import PopUp
 
 class IniManager():
 

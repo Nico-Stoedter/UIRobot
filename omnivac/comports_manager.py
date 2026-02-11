@@ -1,7 +1,7 @@
 import serial
 import serial.tools.list_ports
 
-from motor_manager import RS232
+from omnivac.motor_manager import RS232
 
 def getActivePorts() -> list:
     '''Gets all comports found and returns a list'''

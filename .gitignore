@@ -46,3 +46,5 @@ omnivac/__pycache__/
 log.txt
 werte.txt
 tests/
+*.puml
+*.jar

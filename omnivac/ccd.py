@@ -1,6 +1,6 @@
 import math
 from typing import Callable, Tuple
-from ini_manager import IniManager
+from omnivac.ini_manager import IniManager
 
 Vector = Tuple[float, float, float]
 

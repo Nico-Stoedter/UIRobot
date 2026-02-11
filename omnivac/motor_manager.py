@@ -1,14 +1,14 @@
-from motor import Motor
-from ini_manager import IniManager
-from special_motor import (TeleskopArm, RotTranMotor, RotationTypes,
+from omnivac.motor import Motor
+from omnivac.ini_manager import IniManager
+from omnivac.special_motor import (TeleskopArm, RotTranMotor, RotationTypes,
                             XYLimitedMotors)
-from pop_up import PopUp
-from RS232 import RS232
+from omnivac.pop_up import PopUp
+from omnivac.RS232 import RS232
+from omnivac import interpreter
+from omnivac import ccd
 
-import interpreter
 import time
 import math
-import ccd
 
 class MotorManager:
     """Verwaltet Motoren und deren Logik, nutzt RS232 als Transport."""

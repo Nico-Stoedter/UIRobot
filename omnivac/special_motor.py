@@ -1,6 +1,6 @@
 import math
 
-from ini_manager import IniManager
+from omnivac.ini_manager import IniManager
 
 from typing import TYPE_CHECKING
 
