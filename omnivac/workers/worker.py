@@ -1,13 +1,14 @@
-import math
+from PySide6.QtCore import Signal, Slot, QObject, QThread
 
-from PySide6.QtCore import (Signal, Slot,QThread, 
-                            QObject)
+import math
+import threading
+import logging
 
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from motor import Motor
-    from motor_manager import MotorManager
+    from omnivac.core.motor import Motor
+    from omnivac.core.motor_manager import MotorManager
 
 class Worker(QObject):
     update_signal = Signal(int, str)
@@ -16,15 +17,18 @@ class Worker(QObject):
     x_y_popup_sent = False
 
     def __init__(self, motor_manager: "MotorManager", motors: dict[int, "Motor"]):
-        super().__init__()
+        super().__init__(parent=None)  
         self.motor_manager = motor_manager
-        self.motors: dict[int, "Motor"] = motors
+        self.motors = motors
         self.running = True
 
         # Set to remember, which motors triggered a pop-up
         self.triggered_motors = set()
         self.last_pos: dict[int, None|float] = {motor_id: None for motor_id in motors}
         self.last_time = 0
+        self.x_y_popup_sent = False
+
+        self.logger = logging.getLogger(__name__)
 
     def truncate(self, value: float, n: int) -> str:
         return f"{value:.{n}f}"
@@ -32,11 +36,20 @@ class Worker(QObject):
     @Slot()
     def run(self):
         '''Starts a thread which manages QEC; requests, security_postion defined in .ini'''
+        self.logger.debug(f"Worker thread: {QThread.currentThread()}")
+
+        # TEST: Emit direkt am Anfang
+        self.logger.debug("Testing popup signal emission...")
+        self.popup_signal.emit("TEST MESSAGE FROM WORKER")
+        QThread.msleep(1000)  # Warte 1 Sekunde
         while self.running:
+
             for motor_id, motor in self.motors.items():
                 self.motor_manager.request_motor_position(motor_id)
                 cur_pos = motor.get_motor_pos()
-                unit_pos = float(self.truncate(self.motor_manager.steps_to_unit(motor_id, cur_pos), 3))          
+                unit_pos = float(self.truncate(
+                    self.motor_manager.steps_to_unit(motor_id, cur_pos), 3
+                    ))          
 
                 if motor.dev_type in [2,3,4]:
                     unit_pos = round(unit_pos % 360, 3)
@@ -44,6 +57,7 @@ class Worker(QObject):
                 if motor_id in [74,75]: # real-time range check for special x/y 
                     if self.check_x_y_movement(cur_pos, motor_id):
                         if not self.x_y_popup_sent:
+
                             self.popup_signal.emit("x and y motors out of range")
                             self.stop_motor_signal.emit(74)
                             self.stop_motor_signal.emit(75)
@@ -54,13 +68,16 @@ class Worker(QObject):
                 if unit_pos == -0.0: # To avoid -0.0 in GUI 
                     unit_pos = 0.0
 
-                unit_pos = self.truncate(self.motor_manager.steps_to_unit(motor_id, cur_pos), 3) 
-
+                unit_pos = self.truncate(
+                    self.motor_manager.steps_to_unit(motor_id, cur_pos), 3
+                    ) 
                 text = f"{unit_pos} {motor.position_unit}"
 
                 self.check_security_pos(motor, motor_id, float(unit_pos))
 
                 self.update_signal.emit(motor_id, text)
+
+                QThread.msleep(20)
 
 
     def check_x_y_movement(self, cur_pos, motor_id) -> bool:
@@ -80,6 +97,10 @@ class Worker(QObject):
             return True
         
         return False
+
+    def stop(self):
+        """Stoppt den Worker-Thread"""
+        self.running = False
 
     def check_security_pos(self, motor: "Motor", motor_id, unit_pos: float) -> None:
         sec_pos_true = motor.security_pos_true
@@ -113,10 +134,11 @@ class Worker(QObject):
             if abs(unit_pos - pos) < tolerance:
                 in_tolerance = True
                 # Pop-up if motor not triggered and direction correct
-                if (motor_id not in self.triggered_motors) and ((dir_flag and movement_positive) or (not dir_flag and not movement_positive)):
-                    self.stop_motor_signal.emit(motor_id)
-                    self.popup_signal.emit(txt)
-                    self.triggered_motors.add(motor_id)
+                if motor_id not in self.triggered_motors: 
+                    if (dir_flag and movement_positive) or (not dir_flag and not movement_positive):
+                        self.stop_motor_signal.emit(motor_id)
+                        self.popup_signal.emit(txt)
+                        self.triggered_motors.add(motor_id)
         
         # If motor outside of tolerance, reset triggered motor
         if not in_tolerance and motor_id in self.triggered_motors and movement_positive != None:

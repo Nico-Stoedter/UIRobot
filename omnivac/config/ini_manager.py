@@ -3,7 +3,7 @@ import os
 import sys
 import ast
 
-from omnivac.pop_up import PopUp
+from omnivac.ui.widgets.pop_up import PopUp
 
 class IniManager():
 
@@ -15,7 +15,7 @@ class IniManager():
             # Wenn normales Python-Skript, Parent-Ordner von __file__
             current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-        self.configs_dir = os.path.join(current_dir, "configs")
+        self.configs_dir = os.path.join(current_dir, "config")
         self.pop_up = PopUp()  
 
     ### Hilfsfunktionen ###

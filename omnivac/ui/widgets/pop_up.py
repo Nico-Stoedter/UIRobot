@@ -1,13 +1,11 @@
-from PySide6.QtWidgets import (QMessageBox, QLabel, QWidget,
-                               QVBoxLayout)
-
+from PySide6.QtWidgets import QMessageBox, QLabel, QWidget, QVBoxLayout
 from PySide6.QtCore import Qt
 
 class PopUp:
     def __init__(self):
         self.msg_box = None  
 
-    def show_popup(self, message: str):
+    def show_popup(self, message: str) -> QMessageBox:
         # Only display pop-up if no other exist
         if self.msg_box is not None and self.msg_box.isVisible():
             return 
@@ -28,8 +26,7 @@ class PopUp:
 
         self.msg_box.layout().addWidget(text_widget, 0, 1, 1, 2)
 
-        self.msg_box.finished.connect(self._on_popup_closed)
-        self.msg_box.exec()
+        return self.msg_box
 
     def _on_popup_closed(self):
         self.msg_box = None

@@ -19,7 +19,7 @@ from PySide6.QtWidgets import (QApplication, QComboBox, QGridLayout, QHBoxLayout
     QLabel, QMainWindow, QPushButton, QScrollArea,
     QSizePolicy, QSpacerItem, QStackedWidget, QVBoxLayout,
     QWidget)
-from omnivac import resource_rc
+from omnivac.ui.generated import resource_rc
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):

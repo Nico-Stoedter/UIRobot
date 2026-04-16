@@ -1,11 +1,11 @@
-from omnivac.motor import Motor
-from omnivac.ini_manager import IniManager
-from omnivac.special_motor import (TeleskopArm, RotTranMotor, RotationTypes,
+from omnivac.core.motor import Motor
+from omnivac.config.ini_manager import IniManager
+from omnivac.core.special_motor import (TeleskopArm, RotTranMotor, RotationTypes,
                             XYLimitedMotors)
-from omnivac.pop_up import PopUp
-from omnivac.RS232 import RS232
-from omnivac import interpreter
-from omnivac import ccd
+from omnivac.ui.widgets.pop_up import PopUp
+from omnivac.hardware.RS232 import RS232
+from omnivac.core import interpreter
+#from omnivac import ccd
 
 import time
 import math
@@ -97,9 +97,9 @@ class MotorManager:
         y_motor_speed = float(y_motor.max_speed)
         z_motor_speed = float(z_motor.max_speed)
 
-        coll = ccd.calc_collision((x_motor_start, y_motor_start, z_motor_start),
-                                    (target_pos_x, target_pos_y, target_pos_z), 
-                                    (x_motor_speed, y_motor_speed, z_motor_speed))
+        coll = [True]#ccd.calc_collision((x_motor_start, y_motor_start, z_motor_start),
+                                    #(target_pos_x, target_pos_y, target_pos_z), 
+                                    #(x_motor_speed, y_motor_speed, z_motor_speed))
                     
         if coll[0]:
             self.pop_up.show_popup(f"Collision with Security Zone: {coll[1]}")

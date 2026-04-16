@@ -20,7 +20,7 @@ from serial import SerialException
 from omnivac.sidebar import Ui_MainWindow
 from omnivac.motor_manager import MotorManager
 from omnivac.ini_manager import IniManager
-from omnivac.controllers.gamepad_controller import ControllerManager
+from omnivac.controller import ControllerManager
 from omnivac.worker import Worker
 from omnivac.toast import Toast
 from omnivac.pop_up import PopUp

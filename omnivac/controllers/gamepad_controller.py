@@ -1,10 +1,11 @@
 import pygame
+import time
 
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from motor import Motor
-    from motor_manager import MotorManager
+    from omnivac.core.motor import Motor
+    from omnivac.core.motor_manager import MotorManager
 
 pygame.init()
 pygame.joystick.init()
@@ -86,6 +87,8 @@ class ControllerManager:
                 if motor_speeds != self.last_motor_speeds:
                     self.motor_manager.controller_movement(axis_x, axis_y, motor_speeds)
                     self.last_motor_speeds = motor_speeds
+
+            time.sleep(0.1)
 
     # --- Button Events ---
     def add_joy(self):

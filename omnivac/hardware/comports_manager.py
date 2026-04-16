@@ -1,7 +1,8 @@
 import serial
 import serial.tools.list_ports
+from PySide6.QtCore import QMetaObject, QObject, Qt, QThread, QTimer, Signal, Slot
 
-from omnivac.motor_manager import RS232
+from omnivac.hardware.RS232 import RS232
 
 def getActivePorts() -> list:
     '''Gets all comports found and returns a list'''
