@@ -8,10 +8,10 @@ class Motor(QObject):
         self.config_manager = config_manager
         self.config_manager.check_existing_ini(self.device_id)
         
-        self.device_name = self.config_manager.get_value(self.device_id, 'Soft_Basic', 'Device_Name')
-        self.max_pos = self.config_manager.get_value(self.device_id, 'Soft_Basic', 'Max_Position')
-        self.min_pos = self.config_manager.get_value(self.device_id, 'Soft_Basic', 'Max_Position')
-        self.unit = self.config_manager.get_value(self.device_id, 'Soft_Basic', 'Position_Unit')
+        self.device_name = self.config_manager.get_value(self.device_id, 'Software_Config', 'Device_Name')
+        self.max_pos = self.config_manager.get_value(self.device_id, 'Software_Config', 'Max_Position')
+        self.min_pos = self.config_manager.get_value(self.device_id, 'Software_Config', 'Max_Position')
+        self.unit = self.config_manager.get_value(self.device_id, 'Software_Config', 'Unit')
 
         self.status = {
             "acr": 0, "ena": 0, "direction": 1, "mcs": 16,

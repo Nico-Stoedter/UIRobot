@@ -29,6 +29,11 @@ class ApplicationManager(QObject):
         self.motor_manager.scan_completed.connect(self.on_scan_completed)
         self.build_motor_page.connect(self.main_window._setup_motor_page)
 
+        # --- Signals for ConfigManager ---
+
+        self.config_manager.key_error.connect(self.on_key_error_received)
+        self.config_manager.integrity_error.connect(self.on_integrity_check_failed)
+
     def connect_to_motors(self):
         """Connect to serial port and scan for motors"""
         serial_settings = self.main_window.get_connection_settings()
@@ -65,7 +70,14 @@ class ApplicationManager(QObject):
     @Slot(Exception)
     def on_exception_received(self, exception):
         if isinstance(exception, SerialException):
-            self.pop_up.show_popup("Port möglicherweise besetzt")
+            self.pop_up.show_popup(["Port möglicherweise besetzt"])
 
+    @Slot(str)
+    def on_key_error_received(self, key: str):
+        self.pop_up.show_popup([f"{key} not found. Ini might be wrong formated"])
+
+    @Slot(list)
+    def on_integrity_check_failed(self, errors: list[str]):
+        self.pop_up.show_popup(errors)
 
         
