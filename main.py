@@ -1,9 +1,8 @@
 from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import QObject, QTimer
 
-from omnivac.ui.views.main_window import MainWindow
-from omnivac.config.ini_manager import IniManager
-
+from src.ui.main_window import MainWindow
+from application_manager import ApplicationManager
 
 import sys 
 
@@ -17,5 +16,8 @@ if __name__ == "__main__":
     
     window = MainWindow()
     window.show()
+
+    # Initialize application manager
+    app_manager = ApplicationManager(window)
     
     sys.exit(app.exec())

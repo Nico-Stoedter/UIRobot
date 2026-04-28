@@ -3,9 +3,9 @@ import os
 import sys
 import ast
 
-from omnivac.ui.widgets.pop_up import PopUp
+from src.ui.pop_up import PopUp
 
-class IniManager():
+class ConfigManager():
 
     def __init__(self):
         if getattr(sys, 'frozen', False):
@@ -15,7 +15,7 @@ class IniManager():
             # Wenn normales Python-Skript, Parent-Ordner von __file__
             current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-        self.configs_dir = os.path.join(current_dir, "config")
+        self.configs_dir = os.path.join(current_dir, "configs")
         self.pop_up = PopUp()  
 
     ### Hilfsfunktionen ###
@@ -326,9 +326,8 @@ class IniManager():
 
         return boxes
 
+# --- Zum Testen ---
 if __name__ == '__main__':
     ini_manager = IniManager()
     boxes = ini_manager.get_security_zones()
     print(boxes)
-
-

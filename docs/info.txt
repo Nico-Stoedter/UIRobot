@@ -1,9 +1,0 @@
-Motor Adresse 5 ist immer x-Achse, 6 ist immer y-Achse und 7 ist immer z-Achse
-
-x-y radial bewegung
-
-x-y-z gemeinsame sperrzonen bewegung
-
-r1-r3 zusammenhängende bewegegung
-
-Modolo 360 rotation
