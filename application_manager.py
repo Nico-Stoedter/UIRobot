@@ -7,6 +7,7 @@ from src.motor_manager import MotorManager
 from src.config_manager import ConfigManager
 from src.motor_position_poller import MotorPositionPoller
 from src.ui.pop_up import PopUp
+from src.ui.toast import Toast
 
 class ApplicationManager(QObject):
     """
@@ -19,6 +20,7 @@ class ApplicationManager(QObject):
         super().__init__()
         self.main_window = window
         self.pop_up = PopUp()
+        self.toast = Toast(self.main_window)
         self.config_manager = ConfigManager()
 
         self.serial_manager = SerialManager()
@@ -35,7 +37,7 @@ class ApplicationManager(QObject):
         self.main_window.motor_page_created.connect(self.on_motor_page_created)
         self.main_window.reset_page_created.connect(self.on_reset_page_created) 
 
-        # --- Signals between MotorManager and ApplikationManager ---
+        # --- Signals between MotorManager and ApplicationManager ---
 
         self.motor_manager.motor_position.connect(self.on_position_update)
 
@@ -157,13 +159,28 @@ class ApplicationManager(QObject):
             return
 
     def on_confirm_btn_clicked(self):
-        input_dict = self.main_window.input_position
-        real_input_dict = {k: v for k,v in input_dict.items() if len(v.text()) != 0}    # Only not empty input
+        input_dict = {
+            motor_id: float(widget.text())
+            for motor_id, widget in self.main_window.input_position.items()
+            if widget.text().strip()
+        }
 
-        for key, value in real_input_dict.items():
-            position = value.text()
-            unit_pos = self.unit_to_steps(key, float(position))
-            self.motor_manager.move_motor(key, unit_pos)
+        if self.range_check(input_dict):
+            return
+
+        for motor_id, unit_pos in input_dict.items():
+            stp = self.unit_to_steps(motor_id, unit_pos)
+            self.motor_manager.move_motor(motor_id, stp)
+
+    def range_check(self, input_dict: dict) -> bool:
+        for motor_id, unit_pos in input_dict.items():
+            motor = self.motor_manager.motors.get(motor_id)
+
+            if not (motor.min_pos <= unit_pos <= motor.max_pos):
+                self.toast.show_toast(f"Motor {motor_id} Input out of Range")
+                return True
+
+        return False
 
     def on_reset_btn_clicked(self):
         print("Test")

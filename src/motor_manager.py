@@ -73,12 +73,6 @@ class MotorManager(QObject):
             self.motors[controller_id].set_spd(value)
             self.motors[controller_id].spd(value)
 
-    def set_motor_position_abs(self, controller_id, value):
-        """Set motor absolute position."""
-        if controller_id in self.motors:
-            self.motors[controller_id].set_position(value)
-            self.motors[controller_id].qec(value)
-
     def stop_motor(self, controller_id):
         """Stop a specific motor immediately."""
         if controller_id not in self.motors:
@@ -100,36 +94,8 @@ class MotorManager(QObject):
     def move_motor(self, motor_id, position):
         motor = self.motors.get(motor_id)
 
-        msg = f"ADR={motor_id};SPD{motor.spd};QEC{position};"
+        msg = f"ADR={motor_id};SPD{motor.spd_pps};QEC{position};"
         self.serial_manager.send_message(msg)
-
-    def move_motor_to_units(
-        self,
-        controller_id,
-        target_units,
-        speed_units_per_sec=None,
-        forward_only=False,
-        wrap_direction=None,
-    ):
-        """Move a motor to an absolute target in calibrated display units."""
-        if controller_id not in self.motors:
-            return False
-
-        motor = self.motors[controller_id]
-        if wrap_direction is not None:
-            if wrap_direction >= 0:
-                delta_units = (target_units - motor.get_position()) % 360.0
-            else:
-                delta_units = -((motor.get_position() - target_units) % 360.0)
-        elif forward_only:
-            delta_units = (target_units - motor.get_position()) % 360.0
-        else:
-            delta_units = target_units - motor.get_position()
-
-        motor.prepare_for_motion(speed_units_per_sec=speed_units_per_sec)
-        delta_raw = motor.get_delta_raw_from_units(delta_units)
-        motor.stp(delta_raw)
-        return True
 
     def zero_motor_position(self, controller_id):
         """Reset the displayed motor position to zero at the current physical location."""

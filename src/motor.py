@@ -9,8 +9,8 @@ class Motor(QObject):
         self.config_manager.check_existing_ini(self.device_id)
         
         self.device_name = self.config_manager.get_value(self.device_id, 'Software_Config', 'Device_Name')
-        self.max_pos = self.config_manager.get_value(self.device_id, 'Software_Config', 'Max_Position')
-        self.min_pos = self.config_manager.get_value(self.device_id, 'Software_Config', 'Max_Position')
+        self.max_pos = float(self.config_manager.get_value(self.device_id, 'Software_Config', 'Max_Position'))
+        self.min_pos = float(self.config_manager.get_value(self.device_id, 'Software_Config', 'Min_Position'))
         self.unit = self.config_manager.get_value(self.device_id, 'Software_Config', 'Unit')
         self.spd_pps = self.config_manager.get_value(self.device_id, 'Hardware_Config', 'Max_Speed(pps)')
 
