@@ -2,6 +2,7 @@ from PySide6.QtCore import QObject, Signal, QTimer, Slot
 
 from src.motor import Motor
 from src.motor_position_poller import MotorPositionPoller
+from src.motor_motion_profiles.x_y_motor_workspace import XYMotorWorkspace 
 
 class MotorManager(QObject):
     motor_discovered = Signal(int, object)  # Signal for newly discovered motor
@@ -18,6 +19,12 @@ class MotorManager(QObject):
         self.motors = {}  # Stores all discovered motors
         self.address_list = []
         self.is_scanning = False
+
+        # --- Motor Motion Profiles ---
+        self.x_motor_id = 74
+        self.y_motor_id = 75
+        self.x_y_motor_worspace = XYMotorWorkspace(self)
+
 
     def handle_serial_data(self, data):
         """Handle raw serial data emitted by the serial manager."""
@@ -55,76 +62,23 @@ class MotorManager(QObject):
         self.is_scanning = False
         self.scan_completed.emit()  # Or handle completion differently
 
-    def get_motor_status(self, controller_id):
-        """Get motor status - called by GUI."""
-        if controller_id in self.motors:
-            status = self.motors[controller_id].get_status()
-            self.motor_state.emit(controller_id, status)
-
     def get_motor_position(self, controller_id):
         """Request the current motor position from hardware."""
         if controller_id in self.motors:
             msg = f"ADR{controller_id};QEC;"
             self.serial_manager.send_message(msg)
-
-    def set_motor_speed(self, controller_id, value):
-        """Set motor speed."""
-        if controller_id in self.motors:
-            self.motors[controller_id].set_spd(value)
-            self.motors[controller_id].spd(value)
-
-    def stop_motor(self, controller_id):
-        """Stop a specific motor immediately."""
-        if controller_id not in self.motors:
-            return False
-
-        self.motors[controller_id].stop()
-        return True
-
-    def set_motor_enabled_state(self, controller_id, enabled):
-        """Explicitly enable or disable a specific motor."""
-        if controller_id not in self.motors:
-            return False
-
-        motor = self.motors[controller_id]
-        motor.set_enable(enabled)
-        motor.ena()
-        return True
     
     def move_motor(self, motor_id, position):
-        motor = self.motors.get(motor_id)
+        if motor_id in [74,75]:
+            self.x_y_motor_worspace.move_motor()
+        else:
+            self.move_normal(motor_id, position)
 
+    def move_normal(self, motor_id, position):
+        motor = self.motors.get(motor_id)
         msg = f"ADR={motor_id};SPD{motor.spd_pps};QEC{position};"
         self.serial_manager.send_message(msg)
 
-    def zero_motor_position(self, controller_id):
-        """Reset the displayed motor position to zero at the current physical location."""
-        if controller_id not in self.motors:
-            return False
-
-        self.motors[controller_id].zero_position()
-        self.motor_state.emit(controller_id, self.motors[controller_id].get_status())
-        return True
-
-    def zero_motor_encoder_hardware(self, controller_id):
-        """Ask the controller to set the current encoder position to zero."""
-        return self.set_motor_encoder_hardware(controller_id, 0)
-
-    def set_motor_encoder_hardware(self, controller_id, encoder_value):
-        """Ask the controller to set the current encoder position to a specific raw value."""
-        if controller_id not in self.motors:
-            return False
-
-        motor = self.motors[controller_id]
-        encoder_value = int(round(encoder_value))
-        motor.qec(encoder_value)
-        motor.status["rEncoder"] = encoder_value
-        motor.status["sEncoder"] = encoder_value
-        motor.status["hasPosition"] = True
-        motor.status["displayPosition"] = motor.get_position()
-        motor.status["displayUnit"] = motor.display_unit
-        self.motor_state.emit(controller_id, motor.get_status())
-        return True
 
     def enable_all(self):
         """Enable all motors"""
