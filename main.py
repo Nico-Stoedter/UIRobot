@@ -19,5 +19,8 @@ if __name__ == "__main__":
 
     # Initialize application manager
     app_manager = ApplicationManager(window)
+
+    # Ensure worker threads are stopped before Qt tears objects down
+    app.aboutToQuit.connect(app_manager.shutdown)
     
     sys.exit(app.exec())

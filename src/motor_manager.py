@@ -1,11 +1,12 @@
 from PySide6.QtCore import QObject, Signal, QTimer, Slot
 
 from src.motor import Motor
+from src.motor_position_poller import MotorPositionPoller
 
 class MotorManager(QObject):
     motor_discovered = Signal(int, object)  # Signal for newly discovered motor
     motor_state = Signal(int, dict)  # Signal for motor status update
-    motor_position = Signal(int)  # Signal for motor position update
+    motor_position = Signal(int, int)            # Signal for motor position update: motor_id, rEncoder 
     motor_ready = Signal(int, int)  # Signal for motor ready state
     scan_completed = Signal()  # Signal for scan completion
 
@@ -22,7 +23,6 @@ class MotorManager(QObject):
         """Handle raw serial data emitted by the serial manager."""
         if not data:
             return
-
         try:
             self.get_message(data)
         except Exception as error:
@@ -64,7 +64,8 @@ class MotorManager(QObject):
     def get_motor_position(self, controller_id):
         """Request the current motor position from hardware."""
         if controller_id in self.motors:
-            self.motors[controller_id].qec()
+            msg = f"ADR{controller_id};QEC;"
+            self.serial_manager.send_message(msg)
 
     def set_motor_speed(self, controller_id, value):
         """Set motor speed."""
@@ -95,6 +96,12 @@ class MotorManager(QObject):
         motor.set_enable(enabled)
         motor.ena()
         return True
+    
+    def move_motor(self, motor_id, position):
+        motor = self.motors.get(motor_id)
+
+        msg = f"ADR={motor_id};SPD{motor.spd};QEC{position};"
+        self.serial_manager.send_message(msg)
 
     def move_motor_to_units(
         self,
@@ -153,15 +160,19 @@ class MotorManager(QObject):
         self.motor_state.emit(controller_id, motor.get_status())
         return True
 
-    def set_motor_enabled(self, value):
-        """Enable/disable all motors."""
+    def enable_all(self):
+        """Enable all motors"""
         for idx in self.address_list:
             if idx in self.motors:
-                self.motors[idx].set_enable(value)
-                self.motors[idx].ena()
-                if value:
-                    self.motors[idx].spd(self.motors[idx].get_spd())
-                    self.motors[idx].stop()
+                msg = f"ADR={idx};ENA;"
+                self.serial_manager.send_message(msg)
+
+    def disable_all(self):
+        """Disable all motors"""
+        for idx in self.address_list:
+            if idx in self.motors:
+                msg = f"ADR{idx};OFF;"
+                self.serial_manager.send_message(msg)
 
     def stop_all(self):
         """Stop all motors."""
@@ -233,6 +244,7 @@ class MotorManager(QObject):
             if should_track_motor and controller_id not in self.motors and controller_id != 127:
                 self.motors[controller_id] = Motor(controller_id, self.serial_manager, self.config_manager)
                 self.address_list.append(controller_id)
+                self.address_list.sort()
                 self.motor_discovered.emit(controller_id, self.motors[controller_id]) # emit hat noch kein SLot
                 print(f"Motor {controller_id} registered from serial response")
 
@@ -283,7 +295,9 @@ class MotorManager(QObject):
 
             elif header == "CC":  # Feedback header "CC"
                 if message_id == "B1" and len(data_bytes) == 5:  # QEC; Check current quadrature encoder's position
-                    status_update = {"rEncoder": self.get_32bit(data_bytes)}
+                    rEncoder = self.get_32bit(data_bytes)
+                    self.motor_position.emit(controller_id, rEncoder)
+                    status_update = {"rEncoder": rEncoder}
                 elif message_id == "B2" and len(data_bytes) == 3:  # SPD; Check current speed
                     status_update = {"rSpd": self.get_16bit(data_bytes)}
                 elif message_id == "B3" and len(data_bytes) == 5:  # STP; Check current incremental displacement

@@ -34,9 +34,7 @@ class SerialWorker(QObject):
     @Slot()
     def read_data(self):
         """Read data asynchronously and emit via signal."""
-        #print(self.running, self.serial_connection, self.serial_connection.is_open)
         if self.running and self.serial_connection and self.serial_connection.is_open:
-            #print(self.serial_connection.in_waiting)
             if self.serial_connection.in_waiting:
                 data = self.serial_connection.read_until(b'\xff')
                 self.data_received.emit(data)  # Processed safely in GUI thread

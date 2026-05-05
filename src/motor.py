@@ -12,6 +12,7 @@ class Motor(QObject):
         self.max_pos = self.config_manager.get_value(self.device_id, 'Software_Config', 'Max_Position')
         self.min_pos = self.config_manager.get_value(self.device_id, 'Software_Config', 'Max_Position')
         self.unit = self.config_manager.get_value(self.device_id, 'Software_Config', 'Unit')
+        self.spd_pps = self.config_manager.get_value(self.device_id, 'Hardware_Config', 'Max_Speed(pps)')
 
         self.status = {
             "acr": 0, "ena": 0, "direction": 1, "mcs": 16,

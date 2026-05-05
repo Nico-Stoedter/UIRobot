@@ -10,7 +10,7 @@ from PySide6.QtGui import (
 )
 from PySide6.QtCore import (
     QUrl, QTimer, Slot, 
-    QRegularExpression
+    QRegularExpression, Signal
 )
 from PySide6.QtWebEngineWidgets import QWebEngineView
 
@@ -21,6 +21,10 @@ import sys
 import os
 
 class MainWindow(QMainWindow):
+
+    motor_page_created = Signal()
+    confirm_btn_created = Signal(QPushButton)
+
     def __init__(self):
         super().__init__()
         # Path for Ressources
@@ -63,10 +67,6 @@ class MainWindow(QMainWindow):
         self.ui.stackedWidget.setCurrentIndex(0)  # Comport-Seite anzeigen
         self.ui.comport_btn.setChecked(True)
 
-        #self.ui.enable_all_btn.clicked.connect(self.on_enable_all_clicked)
-        #self.ui.enable_all_btn2.clicked.connect(self.on_enable_all_clicked)
-        #self.ui.disable_all_btn.clicked.connect(self.on_disable_all_clicked)
-        #self.ui.disable_all_btn2.clicked.connect(self.on_disable_all_clicked)
         #self.ui.stop_btn.clicked.connect(self.on_stop_btn_clicked)
         #self.ui.stop_btn2.clicked.connect(self.on_stop_btn_clicked)
         #self.ui.reset_btn.clicked.connect(self.on_reset_btn_clicked)
@@ -160,6 +160,7 @@ class MainWindow(QMainWindow):
         motor_page_widget = self.ui.scrollAreaWidgetContents
         reset_page_widget = self.ui.scrollAreaWidgetContents_2
         self.create_motor_page_widgets(motor_page_widget, len(motor_dict), motor_dict)
+        self.motor_page_created.emit()
 
     def create_motor_page_widgets(self, scroll_widget, motor_rows: int, motor_dict):
         old_layout = scroll_widget.layout()
@@ -200,6 +201,7 @@ class MainWindow(QMainWindow):
         confirm_btn.setMinimumHeight(50)
         confirm_btn.setMaximumHeight(80)
         confirm_btn.setSizePolicy(sizePolicy)
+        self.confirm_btn_created.emit(confirm_btn)
 
         #if scroll_widget == self.ui.scrollAreaWidgetContents:
         #    confirm_btn.clicked.connect(self.on_confirm_btn_clicked)
@@ -363,9 +365,3 @@ class MainWindow(QMainWindow):
                         self.duplicate_label_dict[motor_tuple[0]].append(duplicate_label)
 
         return layout
-
-    def closeEvent(self, event):
-        """Cleanup on closing"""
-        print("Programm wird geschlossen")
-        self.controller.cleanup()
-        event.accept()
