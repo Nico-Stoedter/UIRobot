@@ -22,8 +22,8 @@ import os
 
 class MainWindow(QMainWindow):
 
-    motor_page_created = Signal()
-    confirm_btn_created = Signal(QPushButton)
+    motor_page_created = Signal(QPushButton)
+    reset_page_created = Signal(QPushButton)
 
     def __init__(self):
         super().__init__()
@@ -53,7 +53,7 @@ class MainWindow(QMainWindow):
         # Help Page Setup (PDF Viewer)
         self._setup_comport_page()
         self._setup_help_page()
-        #sefl._setup_motor_page
+        self._setup_motor_page()
 
         # --- Signale für Sidebar ---
         self.ui.comport_btn.toggled.connect(self.on_comport_toggled)
@@ -156,11 +156,13 @@ class MainWindow(QMainWindow):
 
     # --- Setup for Motor Page + Reset Page---
     @Slot(int)
-    def _setup_motor_page(self, motor_dict):
+    def _setup_motor_page(self, motor_dict={}):
         motor_page_widget = self.ui.scrollAreaWidgetContents
         reset_page_widget = self.ui.scrollAreaWidgetContents_2
         self.create_motor_page_widgets(motor_page_widget, len(motor_dict), motor_dict)
-        self.motor_page_created.emit()
+
+        self.create_motor_page_widgets(reset_page_widget, len(motor_dict), motor_dict)
+        
 
     def create_motor_page_widgets(self, scroll_widget, motor_rows: int, motor_dict):
         old_layout = scroll_widget.layout()
@@ -201,12 +203,12 @@ class MainWindow(QMainWindow):
         confirm_btn.setMinimumHeight(50)
         confirm_btn.setMaximumHeight(80)
         confirm_btn.setSizePolicy(sizePolicy)
-        self.confirm_btn_created.emit(confirm_btn)
 
-        #if scroll_widget == self.ui.scrollAreaWidgetContents:
-        #    confirm_btn.clicked.connect(self.on_confirm_btn_clicked)
-        #else:
-        #    confirm_btn.clicked.connect(self.on_reset_btn_clicked)
+        # Connect Btn to its Corresponding Function
+        if scroll_widget == self.ui.scrollAreaWidgetContents:
+            self.motor_page_created.emit(confirm_btn)
+        else:
+            self.reset_page_created.emit(confirm_btn)
 
         layout.addWidget(confirm_btn, alignment=Qt.AlignHCenter)
 
@@ -214,11 +216,10 @@ class MainWindow(QMainWindow):
 
         layout.addItem(v_spacer)
 
-
         return layout 
 
     def create_header_row_layout(self, parent_widget, headers: list[str]) -> QHBoxLayout:
-        '''Creates the header row in a widget'''
+        '''Creates the header row in the ScrollAreaWidget'''
         layout = QHBoxLayout()
         layout.setObjectName("header_row_layout")
 

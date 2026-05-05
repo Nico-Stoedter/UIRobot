@@ -31,9 +31,9 @@ class ApplicationManager(QObject):
         self.main_window.ui.enable_all_btn.clicked.connect(self.motor_manager.enable_all)
         self.main_window.ui.enable_all_btn2.clicked.connect(self.motor_manager.enable_all)
         self.main_window.ui.disable_all_btn.clicked.connect(self.motor_manager.disable_all)
-        self.main_window.ui.disable_all_btn2.clicked.connect(self.motor_manager.disable_all)
-        self.main_window.confirm_btn_created.connect(self.dummy_func) # Wenn Ich UI Refactore: So machen, dass UI Pages vorab erstellt werden, und nur per Signal nötiges erhalten
-        
+        self.main_window.ui.disable_all_btn2.clicked.connect(self.motor_manager.disable_all)      
+        self.main_window.motor_page_created.connect(self.on_motor_page_created)
+        self.main_window.reset_page_created.connect(self.on_reset_page_created) 
 
         # --- Signals between MotorManager and ApplikationManager ---
 
@@ -156,7 +156,6 @@ class ApplicationManager(QObject):
         else:
             return
 
-    @Slot()
     def on_confirm_btn_clicked(self):
         input_dict = self.main_window.input_position
         real_input_dict = {k: v for k,v in input_dict.items() if len(v.text()) != 0}    # Only not empty input
@@ -165,3 +164,14 @@ class ApplicationManager(QObject):
             position = value.text()
             unit_pos = self.unit_to_steps(key, float(position))
             self.motor_manager.move_motor(key, unit_pos)
+
+    def on_reset_btn_clicked(self):
+        print("Test")
+
+    @Slot(QPushButton)
+    def on_motor_page_created(self, confirm_btn):
+        confirm_btn.clicked.connect(self.on_confirm_btn_clicked)
+    
+    @Slot(QPushButton)
+    def on_reset_page_created(self, reset_btn):
+        reset_btn.clicked.connect(self.on_reset_btn_clicked)
