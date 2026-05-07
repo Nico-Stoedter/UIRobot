@@ -1,12 +1,16 @@
-from PySide6.QtWidgets import (QMessageBox, QLabel, QWidget,
-                               QVBoxLayout)
+from PySide6.QtWidgets import QMessageBox
+from PySide6.QtCore import Signal, QObject, Slot
 
-from PySide6.QtCore import Qt
+class PopUp(QObject):
 
-class PopUp:
+    pop_up_closed = Signal()
+    pop_up_created = Signal()
+
     def __init__(self):
+        super().__init__()
         self.msg_box = None 
 
+    @Slot(list)
     def show_popup(self, messages: list[str]):
         if isinstance(messages, list):
             message = "\n".join(messages)   # jede Zeichenfolge als eigene Zeile
@@ -15,22 +19,12 @@ class PopUp:
 
         if self.msg_box is not None and self.msg_box.isVisible():
             return 
+        
+        self.pop_up_created.emit()
 
         self.msg_box = QMessageBox()
         self.msg_box.setWindowTitle("Info Box")
         
-        # Own layout for pop-up
-        #text_widget = QWidget()
-        #v_layout = QVBoxLayout(text_widget)
-        #v_layout.setContentsMargins(50, 20, 50, 20)  
-        #v_layout.setSpacing(10)
-
-        #label = QLabel(message)
-        #label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        
-        #v_layout.addWidget(label)
-
-        #self.msg_box.layout().addWidget(text_widget, 0, 1, 1, 2)
         self.msg_box.setText(message)
 
         self.msg_box.finished.connect(self._on_popup_closed)
@@ -38,6 +32,7 @@ class PopUp:
 
     def _on_popup_closed(self):
         self.msg_box = None
+        self.pop_up_closed.emit()
 
     def is_visible(self) -> bool:
         """True if pop-up active"""
