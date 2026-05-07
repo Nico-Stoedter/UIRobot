@@ -2,8 +2,8 @@ from PySide6.QtCore import QObject
 
 class XYMotorWorkspace(QObject):
     
-    def __init__(self):
-        super().__init__(parent=None)
+    def __init__(self, parent=None):
+        super().__init__(parent)
         self.x_motor_id = 74
         self.y_motor_id = 75
 
