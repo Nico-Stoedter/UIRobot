@@ -281,8 +281,8 @@ class MainWindow(QMainWindow):
                     input = QLineEdit(parent_widget)
 
                     # settings for widget
-                    max_pos = float(motor_tuple[1].max_pos)
-                    min_pos = float(motor_tuple[1].min_pos)
+                    max_pos = float(motor_tuple[1].max_pos_unit)
+                    min_pos = float(motor_tuple[1].min_pos_unit)
                     input.setPlaceholderText(f"∈[{min_pos}, {max_pos}]")
 
                     self.input_position[motor_tuple[0]] = input
