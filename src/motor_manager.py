@@ -42,7 +42,7 @@ class MotorManager(QObject):
         message_id = hex(data[2])[2:].upper()
         terminator = hex(data[-1])[2:].upper()
         data_bytes = data[3:-1]
-        print(f"Received message: Header={header}, ID={controller_id}, Message={message_id}, Data={data_bytes}, Terminator={terminator}")
+        #print(f"Received message: Header={header}, ID={controller_id}, Message={message_id}, Data={data_bytes}, Terminator={terminator}")
         self.process_message(header, controller_id, message_id, data_bytes, terminator)
 
     @Slot()
@@ -67,6 +67,19 @@ class MotorManager(QObject):
         if controller_id in self.motors:
             msg = f"ADR{controller_id};QEC;"
             self.serial_manager.send_message(msg)
+
+    def move_motor_joy(self, motor_id, joy_spd) -> None:
+        """Manages Joystick Movement"""
+        motor = self.motors.get(motor_id)
+        max_pos_stp = motor.max_pos_stp
+        min_pos_stp = motor.min_pos_stp
+
+        if joy_spd >= 0:
+            msg = f"ADR={motor_id};SPD{joy_spd};QEC{int(max_pos_stp)};"
+        else:
+            msg = f"ADR={motor_id};SPD{joy_spd};QEC{int(min_pos_stp)};"
+        
+        self.serial_manager.send_message(msg)
     
     def move_motor(self, motor_id, position):
         if motor_id in [74,75]:
@@ -77,6 +90,10 @@ class MotorManager(QObject):
     def move_normal(self, motor_id, position):
         motor = self.motors.get(motor_id)
         msg = f"ADR={motor_id};SPD{motor.spd_pps};QEC{position};"
+        self.serial_manager.send_message(msg)
+
+    def reset_position(self, motor_id, stp):
+        msg = f"ADR={motor_id};ORG{stp};"
         self.serial_manager.send_message(msg)
 
 
@@ -91,7 +108,7 @@ class MotorManager(QObject):
         """Disable all motors"""
         for idx in self.address_list:
             if idx in self.motors:
-                msg = f"ADR{idx};OFF;"
+                msg = f"ADR={idx};OFF;"
                 self.serial_manager.send_message(msg)
 
     def stop_all(self):

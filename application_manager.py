@@ -6,6 +6,7 @@ from src.serial_manager import SerialManager
 from src.motor_manager import MotorManager
 from src.config_manager import ConfigManager
 from src.motor_position_poller import MotorPositionPoller
+from src.joystick_manager import JoystickManager
 from src.ui.pop_up import PopUp
 from src.ui.toast import Toast
 
@@ -15,6 +16,7 @@ class ApplicationManager(QObject):
     """
     motors_scan_completed = Signal(list)
     build_motor_page = Signal(object)
+    read_axis_motor_pairs = Signal(dict)
 
     def __init__(self, window):
         super().__init__()
@@ -26,9 +28,13 @@ class ApplicationManager(QObject):
         self.serial_manager = SerialManager()
         self.motor_manager = MotorManager(self.serial_manager, self.config_manager)
         self.motor_position_poller = MotorPositionPoller()
+        self.joystick_manager = JoystickManager()
 
-        # --- Signals between UI and Backend
+        # --- Test ---
 
+        self.joystick_manager.create_pop_up.connect(self.pop_up.show_popup)
+
+        # --- UI Singals ---
         self.main_window.ui.connect_btn.clicked.connect(self.connect_to_motors)
         self.main_window.ui.enable_all_btn.clicked.connect(self.motor_manager.enable_all)
         self.main_window.ui.enable_all_btn2.clicked.connect(self.motor_manager.enable_all)
@@ -36,29 +42,31 @@ class ApplicationManager(QObject):
         self.main_window.ui.disable_all_btn2.clicked.connect(self.motor_manager.disable_all)      
         self.main_window.motor_page_created.connect(self.on_motor_page_created)
         self.main_window.reset_page_created.connect(self.on_reset_page_created) 
+        
+        self.pop_up.pop_up_created.connect(self.joystick_manager.pop_up_created)
+        self.pop_up.pop_up_closed.connect(self.joystick_manager.pop_up_closed)
 
-        # --- Signals between MotorManager and ApplicationManager ---
-
+        # --- MotorManager Signals ---
         self.motor_manager.motor_position.connect(self.on_position_update)
+        self.motor_manager.scan_completed.connect(self.on_scan_completed)
 
-        # --- Signal between ApplicationManager and MotorPositionPoller
-
+        # --- ApplicationManager Signals ---
         self.motors_scan_completed.connect(self.motor_position_poller.set_motor_ids)
+        self.build_motor_page.connect(self.main_window._setup_motor_page)
+        self.read_axis_motor_pairs.connect(self.joystick_manager.receive_axis_motor_pairs)
 
-        # --- Signale zwischen MotorPositionManager und MotorManager
-
+        # --- MotorPositionPoller Signals ---
         self.motor_position_poller.poll_motor.connect(self.motor_manager.get_motor_position)
 
-        # --- Signale für Comport Page ---
-
+        # --- SerialManager Signals ---
         self.serial_manager.exception_received.connect(self.on_exception_received)
-        self.motor_manager.scan_completed.connect(self.on_scan_completed)
-        self.build_motor_page.connect(self.main_window._setup_motor_page)
 
-        # --- Signals for ConfigManager ---
-
+        # --- ConfigManager Signals ---
         self.config_manager.key_error.connect(self.on_key_error_received)
         self.config_manager.integrity_error.connect(self.on_integrity_check_failed)
+
+        # --- JoystickManager Signals
+        self.joystick_manager.send_joystick_movement.connect(self.process_joystick_movement)
 
     def test(self):
         print("Cool")
@@ -120,6 +128,48 @@ class ApplicationManager(QObject):
             steps = int(( unit / (360 * pos_factor) ) * 3200)
 
         return  steps
+    
+    def range_check(self, input_dict: dict) -> bool:
+        for motor_id, unit_pos in input_dict.items():
+            motor = self.motor_manager.motors.get(motor_id)
+
+            if not (motor.min_pos <= unit_pos <= motor.max_pos):
+                self.toast.show_toast(f"Motor {motor_id} Input out of Range")
+                return True
+
+        return False
+    
+    def get_all_joy_axis_motor_pairs(self, motor_ids) -> dict[int, int]:
+        axis_motor_dict = {}
+
+        for id in motor_ids:
+            motor = self.motor_manager.motors.get(id)
+            joy_axis = motor.joy_axis
+            axis_motor_dict[joy_axis] = id
+
+        return axis_motor_dict
+    
+    def truncate(self, value: float, n: int) -> str:
+        return f"{value:.{n}f}"
+    
+    @Slot(tuple)
+    def process_joystick_movement(self, movement_data: tuple[int, float]) -> None:
+        motor_id = movement_data[0]
+        motor = self.motor_manager.motors.get(motor_id)
+        joy_deflection = movement_data[1]
+        deadzone = motor.joy_deadzone
+        spd_pps = motor.spd_pps
+        spd_factor = self.joystick_manager.spd_factor   # Is 1 If RB not Pressed 2 Otherwise
+        joy_spd = int((spd_pps * joy_deflection) / 2)   # Max half the Config spd if RB not Pressed
+
+        # Deadzone
+        if joy_deflection <= deadzone and joy_deflection >= -deadzone:
+            self.joystick_manager.moving_motor[motor_id] = False
+            self.motor_manager.move_motor_joy(motor_id, 0)
+            return
+        
+        self.joystick_manager.moving_motor[motor_id] = True
+        self.motor_manager.move_motor_joy(motor_id, joy_spd)
         
     @Slot()
     def on_scan_completed(self):
@@ -128,8 +178,12 @@ class ApplicationManager(QObject):
 
         # Get motor IDs that were found during scanning
         scanned_motor_ids = list(self.motor_manager.motors.keys())
+        axis_motor_pairs = self.get_all_joy_axis_motor_pairs(scanned_motor_ids)
+
         print(f"Found {len(scanned_motor_ids)} motors during scan: {scanned_motor_ids}")
-        self.build_motor_page.emit(self.motor_manager.motors) # Rows generated = amount of found motors
+
+        self.build_motor_page.emit(self.motor_manager.motors)     
+        self.read_axis_motor_pairs.emit(axis_motor_pairs)
         self.motors_scan_completed.emit(scanned_motor_ids)
 
     @Slot(Exception)
@@ -147,14 +201,18 @@ class ApplicationManager(QObject):
 
     @Slot()
     def on_position_update(self, motor_id, position):
-        """Handle individual motor position updates"""
-        print(f"Motor {motor_id} position: {position}")
-        # Update UI with individual position
-        label_dict = self.main_window.label_dict
-        unit = self.steps_to_unit(motor_id, position)
+        """Handle individual motor position updates for Reset and Motor Page"""
+        motor = self.motor_manager.motors.get(motor_id)
+        unit = motor.unit
 
-        if motor_id in label_dict.keys():
-            label_dict.get(motor_id).setText(str(unit))
+        motor_page_labels = self.main_window.label_dict
+        reset_page_labels = self.main_window.duplicate_label_dict
+        pos_unit = self.steps_to_unit(motor_id, position)
+        pos_unit = self.truncate(pos_unit, 2)
+
+        if motor_id in motor_page_labels.keys():
+            motor_page_labels.get(motor_id).setText(str(pos_unit) + unit)
+            reset_page_labels.get(motor_id).setText(str(pos_unit) + unit)
         else:
             return
 
@@ -172,18 +230,16 @@ class ApplicationManager(QObject):
             stp = self.unit_to_steps(motor_id, unit_pos)
             self.motor_manager.move_motor(motor_id, stp)
 
-    def range_check(self, input_dict: dict) -> bool:
-        for motor_id, unit_pos in input_dict.items():
-            motor = self.motor_manager.motors.get(motor_id)
-
-            if not (motor.min_pos <= unit_pos <= motor.max_pos):
-                self.toast.show_toast(f"Motor {motor_id} Input out of Range")
-                return True
-
-        return False
-
     def on_reset_btn_clicked(self):
-        print("Test")
+        input_dict = {
+            motor_id: float(widget.text())
+            for motor_id, widget in self.main_window.input_reset.items()
+            if widget.text().strip()
+        }
+
+        for motor_id, unit_pos in input_dict.items():
+            stp = self.unit_to_steps(motor_id, unit_pos)
+            self.motor_manager.reset_position(motor_id, stp)
 
     @Slot(QPushButton)
     def on_motor_page_created(self, confirm_btn):

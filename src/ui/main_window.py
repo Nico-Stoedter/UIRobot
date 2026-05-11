@@ -36,10 +36,10 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("Omnivac - UiRobot")
         self.setWindowIcon(QIcon(os.path.join(self.current_dir, "resources/icon/omnivac.ico")))
 
-        self.input_reset: dict[int, QLineEdit] = {}
-        self.input_position: dict[int, QLineEdit] = {}
-        self.label_dict: dict[int, QLabel] = {}             # Position label
-        self.duplicate_label_dict: dict[int, list[QLabel]] = {}
+        self.input_position: dict[int, QLineEdit] = {}  # References for User Input UI in Motor Page
+        self.input_reset: dict[int, QLineEdit] = {}     #                              in Reset Page        
+        self.label_dict: dict[int, QLabel] = {}                 # Motor Position Label References in Motor Page
+        self.duplicate_label_dict: dict[int, QLabel] = {} #                                 in Reset Page
         self.label_name_dict: dict[int, QLabel] = {}
 
         regex = QRegularExpression(r"^-?[0-9.]*$")
@@ -360,9 +360,6 @@ class MainWindow(QMainWindow):
                         duplicate_label.setMaximumWidth(300)
                         layout.addWidget(duplicate_label)
 
-                        # saving for sync
-                        if motor_tuple[0] not in self.duplicate_label_dict:
-                            self.duplicate_label_dict[motor_tuple[0]] = []
-                        self.duplicate_label_dict[motor_tuple[0]].append(duplicate_label)
+                        self.duplicate_label_dict[motor_tuple[0]] = duplicate_label
 
         return layout

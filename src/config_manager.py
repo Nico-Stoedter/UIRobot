@@ -101,7 +101,8 @@ class ConfigManager(QObject):
         for key, value in config["Box"].items():
             boxes[key] = ast.literal_eval(value)
 
-        return boxes    
+        return boxes
+
     
     def check_existing_ini(self, motor_id: int) -> None:
         """Checks if motor_id has a .ini file"""

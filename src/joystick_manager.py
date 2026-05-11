@@ -1,0 +1,133 @@
+from PySide6.QtCore import QObject, QTimer, Slot, Signal
+
+import pygame
+
+class JoystickManager(QObject):
+
+    create_pop_up = Signal(list)
+    send_joystick_movement = Signal(tuple)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        pygame.init()
+        self.joystick = None
+
+        self.joystick = pygame.joystick.Joystick(0)
+
+        self._timer = QTimer(self)
+        self._timer.setInterval(50)
+        self._timer.timeout.connect(self._poll)
+        self._timer.start()
+
+        self.pop_up = False
+        self.layout = False # If False Config Axis 1-5 are Used. 6-10 Otherwise
+        self.spd_factor = 1 # Is 2 if RB Button pressed 1 otherwise 
+        self.axis_motor_dict = {}
+        self.last_axis_values: dict[int, int] = {}    # Need to Remember last spd to Enable Correct RB Button spd during Joystick use
+        self.moving_motor: dict[int, bool] = {}
+
+    def _poll(self):
+        try:
+            if self.axis_motor_dict == {}:
+                return
+
+            if self.pop_up: # No Movement if PopUp exists
+                return
+
+            for event in pygame.event.get():
+                if event.type == pygame.JOYBUTTONDOWN:
+                    self.on_button_down(event.button, event)
+                if event.type == pygame.JOYBUTTONUP:
+                    self.on_button_up(event.button, event)
+                elif event.type == pygame.JOYAXISMOTION:
+                    self.on_axis_moved(event.axis, event)
+
+        except Exception as error:
+            print(f"Joystick polling failed: {error}")
+            self.stop()
+
+    def on_button_down(self, button, event):
+        #print("=== JOYBUTTONDOWN ===")
+        #print("button:", event.button)     # Welcher Button gedrückt
+        if event.button == 3:
+            test = ["Test"]
+            self.create_pop_up.emit(test)
+        if event.button == 5:
+            self.rb_button_down()
+
+    def rb_button_down(self):
+        print(f'[ControllerManager] double speed ON')
+        self.spd_factor = 2
+
+        for motor_id, value in self.last_axis_values.items():
+            if self.moving_motor.get(motor_id):
+                new_spd_pps = float(value * 2)
+                self.last_axis_values[motor_id] = new_spd_pps
+                self.send_joystick_movement.emit((motor_id, new_spd_pps))
+
+    def on_button_up(self, button, event):
+        if event.button == 5:
+            self.rb_button_up()
+
+    def rb_button_up(self):
+        print("[JoystickManager] double speed OFF")
+        self.double_speed = 1
+
+        for motor_id, value in self.last_axis_values.items():
+            if self.moving_motor.get(motor_id):
+                new_spd_pps = float(value / 2)
+                self.last_axis_values[motor_id] = new_spd_pps
+                self.send_joystick_movement.emit((motor_id, new_spd_pps))
+    
+    def on_axis_moved(self, axis, event):
+        parsed_axis = self.parse_axis(event.axis)
+        motor_id = self.axis_motor_dict.get(parsed_axis)
+        value = event.value
+
+        # Technically LT, RT are both axis on its own with [-1.0, 1.0]. Convert them to LT [-1.0, 0]; RT [0.0, 1.0]
+        if axis == 5:   
+            value = ((event.value + 1) / 2) * self.spd_factor
+        if axis == 4:
+            value = (((event.value + 1) / 2) * -1) * self.spd_factor
+
+        self.last_axis_values[motor_id] = value
+        self.send_joystick_movement.emit((motor_id, value))
+
+    def parse_axis(self, input: int) -> str:
+        '''Parses Pygame axis number to omnivac axis'''
+        parser = {
+            0 : '1',
+            1 : '2',
+            2 : '3',
+            3 : '4',
+            4 : '5',
+            5 : '5',
+        }
+
+        parser_2 = {
+            0 : '6',
+            1 : '7',
+            2 : '8',
+            3 : '9',
+            4 : '10',
+            5 : '10',
+        }
+
+        if self.layout:
+            return parser_2.get(input)
+        else:    
+            return parser.get(input)   
+
+    @Slot(dict)
+    def receive_axis_motor_pairs(self, axis_motor_pairs: dict[int, int]) -> None:
+        self.axis_motor_dict = axis_motor_pairs
+        self.moving_motor = {key: False for key in axis_motor_pairs.values()}
+        self.last_spd_send = {key: 0 for key in axis_motor_pairs.values()}
+
+    @Slot()
+    def pop_up_created(self) -> None:
+        self.pop_up = True
+
+    @Slot()
+    def pop_up_closed(self) -> None:
+        self.pop_up = False
