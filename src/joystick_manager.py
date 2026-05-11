@@ -10,14 +10,9 @@ class JoystickManager(QObject):
     def __init__(self, parent=None):
         super().__init__(parent)
         pygame.init()
+
         self.joystick = None
-
-        self.joystick = pygame.joystick.Joystick(0)
-
-        self._timer = QTimer(self)
-        self._timer.setInterval(50)
-        self._timer.timeout.connect(self._poll)
-        self._timer.start()
+        self.joystick_instance_id = None
 
         self.pop_up = False
         self.layout = False # If False Config Axis 1-5 are Used. 6-10 Otherwise
@@ -25,6 +20,23 @@ class JoystickManager(QObject):
         self.axis_motor_dict = {}
         self.last_axis_values: dict[int, int] = {}    # Need to Remember last spd to Enable Correct RB Button spd during Joystick use
         self.moving_motor: dict[int, bool] = {}
+
+        self._connect_first_available_joystick()
+
+        self._timer = QTimer(self)
+        self._timer.setInterval(50)
+        self._timer.timeout.connect(self._poll)
+        self._timer.start()
+
+    def _connect_first_available_joystick(self):
+        if pygame.joystick.get_count() > 0:
+            self._set_joystick(pygame.joystick.Joystick(0))
+
+    def _set_joystick(self, joystick):
+        joystick.init()
+        self.joystick = joystick
+        self.joystick_instance_id = joystick.get_instance_id()
+        print(f"Connected: {joystick.get_name()}")
 
     def _poll(self):
         try:
@@ -35,6 +47,10 @@ class JoystickManager(QObject):
                 return
 
             for event in pygame.event.get():
+                if event.type == pygame.JOYDEVICEADDED:
+                    self._handle_device_added(event)
+                if event.type == pygame.JOYDEVICEREMOVED:
+                    self._handle_device_removed(event)
                 if event.type == pygame.JOYBUTTONDOWN:
                     self.on_button_down(event.button, event)
                 if event.type == pygame.JOYBUTTONUP:
@@ -46,6 +62,17 @@ class JoystickManager(QObject):
             print(f"Joystick polling failed: {error}")
             self.stop()
 
+    def _handle_device_added(self, event):
+        if self.joystick is None:
+            self._set_joystick(pygame.joystick.Joystick(event.device_index))
+
+    def _handle_device_removed(self, event):
+        if self.joystick is not None and event.instance_id == self.joystick_instance_id:
+            self.joystick.quit()
+            self.joystick = None
+            self.joystick_instance_id = None
+            print("[JoystickManager] Disconnected")
+        
     def on_button_down(self, button, event):
         #print("=== JOYBUTTONDOWN ===")
         #print("button:", event.button)     # Welcher Button gedrückt
