@@ -19,7 +19,7 @@ class MotorPositionPoller(QObject):
         self.motor_ids = motor_ids
         self.motor_index = 0
         print(f"Poller: {len(motor_ids)} Motoren konfiguriert")
-        self.start_polling(1000)
+        self.start_polling(25)
 
     def start_polling(self, interval_ms):
         """Startet kontinuierliche Abfragen"""

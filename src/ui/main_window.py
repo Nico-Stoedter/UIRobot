@@ -6,7 +6,8 @@ from PySide6.QtWidgets import (
 )
 
 from PySide6.QtGui import (
-    QIcon, Qt, QRegularExpressionValidator
+    QIcon, Qt, QRegularExpressionValidator, 
+    QPixmap
 )
 from PySide6.QtCore import (
     QUrl, QTimer, Slot, 
@@ -41,6 +42,7 @@ class MainWindow(QMainWindow):
         self.label_dict: dict[int, QLabel] = {}                 # Motor Position Label References in Motor Page
         self.duplicate_label_dict: dict[int, QLabel] = {} #                                 in Reset Page
         self.label_name_dict: dict[int, QLabel] = {}
+        self.png_label_dict: dict[int, QLabel] = {}
 
         regex = QRegularExpression(r"^-?[0-9.]*$")
         self.validator = QRegularExpressionValidator(regex)
@@ -174,7 +176,7 @@ class MainWindow(QMainWindow):
 
         # 1. Add Header
         if scroll_widget == self.ui.scrollAreaWidgetContents:
-            headers = ["Name", "Target Pos", "Current Pos", "Preset"] 
+            headers = ["Name", "Target Pos", "Current Pos", "Preset", "Test"] 
         else:
             headers = ["Name", "Reset Pos", "Current Pos"]
 
@@ -253,6 +255,11 @@ class MainWindow(QMainWindow):
                 label.setMinimumWidth(100)
                 label.setMaximumWidth(300)
 
+            # HAbe noch keinen Namen für den Scheiß
+            if i ==4:
+                label.setMinimumWidth(50)
+                label.setMaximumWidth(100)
+
             layout.addWidget(label)
 
         return layout   
@@ -316,6 +323,24 @@ class MainWindow(QMainWindow):
                         lambda: self.on_combo_selection_changed(motor_tuple[0], combo_box.currentIndex())
                         )
                     layout.addWidget(combo_box)
+                elif i == 4:
+                    png_label = QLabel(parent_widget)
+                    png_label.setObjectName("PNG_Lable")
+                    
+                    pixmap = QPixmap("resources/icon/rot.png")
+                    scaled_pixmap = pixmap.scaled(
+                        20, 20,
+                        Qt.AspectRatioMode.KeepAspectRatio,
+                        Qt.TransformationMode.SmoothTransformation
+                    )
+                    png_label.setPixmap(scaled_pixmap)
+                    png_label.setMinimumWidth(50)
+                    png_label.setMaximumWidth(100)
+                    png_label.setMinimumHeight(50)
+                    png_label.setMaximumHeight(50)
+                    png_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                    self.png_label_dict[motor_tuple[0]] = png_label
+                    layout.addWidget(png_label)
         else:
             # Creates widget for reset page
             for i in range(column_count):
@@ -363,3 +388,14 @@ class MainWindow(QMainWindow):
                         self.duplicate_label_dict[motor_tuple[0]] = duplicate_label
 
         return layout
+    
+    def change_pixmap(self, controller_id, png_name) -> None:
+        "Changes the Icon displayed on the motor Page"
+        png_label = self.png_label_dict.get(controller_id)
+        pixmap = QPixmap(f"resources/icon/{png_name}")
+        scaled_pixmap = pixmap.scaled(
+            20, 20,
+            Qt.AspectRatioMode.KeepAspectRatio,
+            Qt.TransformationMode.SmoothTransformation
+        )
+        png_label.setPixmap(scaled_pixmap)

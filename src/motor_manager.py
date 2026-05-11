@@ -7,9 +7,13 @@ from src.motor_motion_profiles.x_y_motor_workspace import XYMotorWorkspace
 class MotorManager(QObject):
     motor_discovered = Signal(int, object)  # Signal for newly discovered motor
     motor_state = Signal(int, dict)  # Signal for motor status update
-    motor_position = Signal(int, int)            # Signal for motor position update: motor_id, rEncoder 
+    motor_position = Signal(int, int)   # Signal for motor position update: motor_id, rEncoder 
     motor_ready = Signal(int, int)  # Signal for motor ready state
-    scan_completed = Signal()  # Signal for scan completion
+    scan_completed = Signal()   # Signal for scan completion
+    motor_ena = Signal(int) # Signal for ENA; Command
+    motor_off = Signal(int) # SIgnal for OFF; Command
+    motor_starts_moving = Signal(int)
+    motor_finished_moving  = Signal(int)
 
     def __init__(self, serial_manager, config_manager=None):
         super().__init__()
@@ -74,10 +78,12 @@ class MotorManager(QObject):
         max_pos_stp = motor.max_pos_stp
         min_pos_stp = motor.min_pos_stp
 
-        if joy_spd >= 0:
+        if joy_spd > 0:
             msg = f"ADR={motor_id};SPD{joy_spd};QEC{int(max_pos_stp)};"
-        else:
+        elif joy_spd < 0:
             msg = f"ADR={motor_id};SPD{joy_spd};QEC{int(min_pos_stp)};"
+        else:
+            msg = f"ADR={motor_id};SPD{joy_spd};"
         
         self.serial_manager.send_message(msg)
     
@@ -201,12 +207,15 @@ class MotorManager(QObject):
                     mmd = self.get_16bit(data_bytes)
                     status_update = {"maxStopSpeed": mmd if mmd >= 0 else (1 << 16) + mmd}
                 elif message_id == "B5" and len(data_bytes) == 3:  # SPD; set desired speed
-                    status_update = {"sSpd": self.get_16bit(data_bytes)}
+                    spd = self.get_16bit(data_bytes)
+                    self.motor_finished_moving.emit(controller_id)
+                    status_update = {"sSpd": spd}
                 elif message_id == "B6" and len(data_bytes) == 5:  # STP; Set desired incremental displacement
                     status_update = {"sDisplacement": self.get_32bit(data_bytes)}
                     self.motor_ready.emit(controller_id, 2)
                 elif message_id == "B8" and len(data_bytes) == 5:  # QEC; Set desired quadrature encoder's position
                     status_update = {"sEncoder": self.get_32bit(data_bytes)}
+                    self.motor_starts_moving.emit(controller_id)
                     self.motor_ready.emit(controller_id, 2)
                 elif message_id == "BA" and len(data_bytes) == 1:  # ACR; ACR; Check auto-current reduction ratio
                     status_update = {"holdingCurrent": data_bytes[0]}
@@ -219,9 +228,17 @@ class MotorManager(QObject):
                 elif message_id == "DE" and len(data_bytes) == 3:  # BLC; BLC; Set backlash compensation value
                     backlash = self.get_16bit(data_bytes)
                     status_update = {"backlash": backlash if backlash >= 0 else (1 << 16) + backlash}
+                elif message_id == "D0" and len(data_bytes) == 0: # ADR=number;
+                    pass
                 else:  # CURn; MCSn; ENA; OFF;
                     acr, ena, direction, mcs = self.analyze_message_id(int(message_id, 16))
                     status_update = {"acr": acr, "ena": ena, "direction": direction, "mcs": mcs}
+
+                    if ena == 1:
+                        self.motor_ena.emit(controller_id)
+                    if ena == 0:
+                        self.motor_off.emit(controller_id)
+
                     if len(data_bytes) == 9:  # All messages should return 9 data bytes
                         status_update.update({
                             "rCur": self.get_current(data_bytes[0]),
@@ -243,6 +260,7 @@ class MotorManager(QObject):
                     status_update = {"S1": data_bytes[0], "S2": data_bytes[1], "S3": data_bytes[2], "AnalogIn": self.get_16bit(data_bytes[3:])}
                 elif message_id == "A8" and len(data_bytes) == 6:  # Unknown message
                     status_update = {"rEncoder": self.get_32bit(data_bytes[1:])}
+                    self.motor_finished_moving.emit(controller_id)
                     self.motor_ready.emit(controller_id, 1)
                 else:  # Other messages
                     acr, ena, direction, mcs = self.analyze_message_id(int(message_id, 16))

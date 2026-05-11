@@ -49,6 +49,10 @@ class ApplicationManager(QObject):
         # --- MotorManager Signals ---
         self.motor_manager.motor_position.connect(self.on_position_update)
         self.motor_manager.scan_completed.connect(self.on_scan_completed)
+        self.motor_manager.motor_ena.connect(self.on_motor_enabled)
+        self.motor_manager.motor_off.connect(self.on_motor_disabled)
+        self.motor_manager.motor_starts_moving.connect(self._on_motor_starts_moving)
+        self.motor_manager.motor_finished_moving.connect(self._on_motor_finished_moving)
 
         # --- ApplicationManager Signals ---
         self.motors_scan_completed.connect(self.motor_position_poller.set_motor_ids)
@@ -133,7 +137,7 @@ class ApplicationManager(QObject):
         for motor_id, unit_pos in input_dict.items():
             motor = self.motor_manager.motors.get(motor_id)
 
-            if not (motor.min_pos <= unit_pos <= motor.max_pos):
+            if not (motor.min_pos_unit <= unit_pos <= motor.max_pos_unit):
                 self.toast.show_toast(f"Motor {motor_id} Input out of Range")
                 return True
 
@@ -152,6 +156,36 @@ class ApplicationManager(QObject):
     def truncate(self, value: float, n: int) -> str:
         return f"{value:.{n}f}"
     
+    @Slot(int)
+    def _on_motor_starts_moving(self, controller_id):
+        motor = self.motor_manager.motors.get(controller_id)
+
+        if motor.status["ena"] == 1:
+            self.main_window.change_pixmap(controller_id, "gruen.png")
+
+    @Slot(int)
+    def _on_motor_finished_moving(self, controller_id):
+        motor = self.motor_manager.motors.get(controller_id)
+
+        if motor.status["ena"] == 1:  
+            print(motor.status["ena"], "Cool") 
+            self.main_window.change_pixmap(controller_id, "blau.png")
+    
+    @Slot(int)
+    def on_motor_enabled(self, controller_id) -> None:
+        motor = self.motor_manager.motors.get(controller_id)
+
+        if motor.status["ena"] == 0:
+            print(motor.status["ena"], "Cool") 
+            self.main_window.change_pixmap(controller_id, "blau.png")
+
+    @Slot(int)
+    def on_motor_disabled(self, controller_id) -> None:
+        motor = self.motor_manager.motors.get(controller_id)
+
+        if motor.status["ena"] == 1:
+            self.main_window.change_pixmap(controller_id, "rot.png")
+    
     @Slot(tuple)
     def process_joystick_movement(self, movement_data: tuple[int, float]) -> None:
         motor_id = movement_data[0]
@@ -166,6 +200,7 @@ class ApplicationManager(QObject):
         if joy_deflection <= deadzone and joy_deflection >= -deadzone:
             self.joystick_manager.moving_motor[motor_id] = False
             self.motor_manager.move_motor_joy(motor_id, 0)
+            self._on_motor_finished_moving(motor_id)
             return
         
         self.joystick_manager.moving_motor[motor_id] = True
