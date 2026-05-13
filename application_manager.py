@@ -16,7 +16,7 @@ class ApplicationManager(QObject):
     """
     motors_scan_completed = Signal(list)
     build_motor_page = Signal(object)
-    read_axis_motor_pairs = Signal(dict)
+    read_axis_motor_pairs = Signal(object)
 
     def __init__(self, window):
         super().__init__()
@@ -71,13 +71,10 @@ class ApplicationManager(QObject):
 
         # --- JoystickManager Signals
         self.joystick_manager.send_joystick_movement.connect(self.process_joystick_movement)
+        self.joystick_manager.layout_changed.connect(self.change_joystick_layout_ui)
 
     def test(self):
         print("Cool")
-
-    @Slot(QPushButton)
-    def dummy_func(self, confirm_btn):
-        confirm_btn.clicked.connect(self.on_confirm_btn_clicked)
 
     def connect_to_motors(self):
         """Connect to serial port and scan for motors"""
@@ -156,6 +153,27 @@ class ApplicationManager(QObject):
     def truncate(self, value: float, n: int) -> str:
         return f"{value:.{n}f}"
     
+    @Slot(bool)
+    def change_joystick_layout_ui(self, layout) -> None:
+        name_label_dict = self.main_window.label_name_dict
+
+        for motor_id, label in name_label_dict.items():
+            motor = self.motor_manager.motors.get(motor_id)
+            joystick_axis = motor.joy_axis
+
+            print(motor.joy_axis)
+            if layout:
+                if joystick_axis > 5:
+                    label.setStyleSheet("color: yellow;")
+                else:
+                    label.setStyleSheet("color: white;")
+            else:
+                if joystick_axis < 6:
+                    label.setStyleSheet("color: yellow;")
+                else:
+                    label.setStyleSheet("color: white;")
+
+    
     @Slot(int)
     def _on_motor_starts_moving(self, controller_id):
         motor = self.motor_manager.motors.get(controller_id)
@@ -217,9 +235,10 @@ class ApplicationManager(QObject):
 
         print(f"Found {len(scanned_motor_ids)} motors during scan: {scanned_motor_ids}")
 
-        self.build_motor_page.emit(self.motor_manager.motors)     
+        self.build_motor_page.emit(self.motor_manager.motors)  
         self.read_axis_motor_pairs.emit(axis_motor_pairs)
         self.motors_scan_completed.emit(scanned_motor_ids)
+        self.change_joystick_layout_ui(False)   # False because intial layout ist axis 1-5
 
     @Slot(Exception)
     def on_exception_received(self, exception):
@@ -260,10 +279,18 @@ class ApplicationManager(QObject):
 
         if self.range_check(input_dict):
             return
+        
+        input_dict = self.security_positions_check(input_dict)
 
         for motor_id, unit_pos in input_dict.items():
             stp = self.unit_to_steps(motor_id, unit_pos)
             self.motor_manager.move_motor(motor_id, stp)
+
+    def security_positions_check(self, input_dict) -> dict[int, float]:
+        for motor_id, unit_pos in input_dict.itmes():
+            motor = self.motor_manager.motors.get(motor_id)
+            
+        return input_dict
 
     def on_reset_btn_clicked(self):
         input_dict = {

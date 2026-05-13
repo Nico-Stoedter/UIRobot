@@ -15,7 +15,7 @@ class Motor(QObject):
         self.min_pos_stp = self.unit_to_steps(self.motor_id, self.min_pos_unit)
         self.unit = self.config_manager.get_value(self.motor_id, 'Software_Config', 'Unit')
         self.spd_pps = int(self.config_manager.get_value(self.motor_id, 'Hardware_Config', 'Max_Speed(pps)'))
-        self.joy_axis = self.config_manager.get_value(self.motor_id, 'Software_Config', 'Joystick_Axis')
+        self.joy_axis = int(self.config_manager.get_value(self.motor_id, 'Software_Config', 'Joystick_Axis'))
         self.joy_deadzone = float(self.config_manager.get_value(self.motor_id, 'Software_Config', 'Deadzone'))
 
         self.status = {

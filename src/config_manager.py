@@ -56,7 +56,7 @@ class ConfigManager(QObject):
         config.read(file_path, encoding='utf-8')
 
         try:
-            presets = dict(config["Preset_Position"])
+            presets = dict(config["Preset_Positions"])
         except KeyError as k:
             missing_key = str(k)
             self.key_error.emit(missing_key)
@@ -153,7 +153,7 @@ class ConfigManager(QObject):
             "Available_AdvMotion": "1"
         }
 
-        config["Preset_Postion"] = {
+        config["Preset_Positions"] = {
             "Home": "0"
         }
 
@@ -272,4 +272,5 @@ class ConfigManager(QObject):
 
 # --- Zum Testen ---
 if __name__ == '__main__':
-    print("cool")
+    config = ConfigManager()
+    presets = config.get_preset_positions(5)

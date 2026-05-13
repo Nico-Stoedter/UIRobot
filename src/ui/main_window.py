@@ -16,6 +16,7 @@ from PySide6.QtCore import (
 from PySide6.QtWebEngineWidgets import QWebEngineView
 
 from src.ui.sidebar import Ui_MainWindow
+from src.config_manager import ConfigManager
 
 import serial.tools.list_ports
 import sys
@@ -30,6 +31,7 @@ class MainWindow(QMainWindow):
         super().__init__()
         # Path for Ressources
         self.current_dir = self._get_base_path()
+        self.config_manager = ConfigManager()
 
         # UI Setup
         self.ui = Ui_MainWindow()
@@ -312,15 +314,14 @@ class MainWindow(QMainWindow):
                     combo_box = QComboBox(parent_widget)
                     combo_box.setObjectName("preset_combo_box")
                     id = motor_tuple[0]
-                    #presets = self.config_manager.get_preset_positions_from_motor(id)
-                    #preset_names = list(presets.keys())
-                    #preset_names.insert(0, "None")
-                    #combo_box.addItems(preset_names)
+                    presets = self.config_manager.get_preset_positions(id)
+                    preset_names = list(presets.keys())
+                    combo_box.addItems(preset_names)
                     combo_box.setMinimumWidth(100)
                     combo_box.setMaximumWidth(300)
                     combo_box.setMinimumHeight(50)
                     combo_box.currentTextChanged.connect(
-                        lambda: self.on_combo_selection_changed(motor_tuple[0], combo_box.currentIndex())
+                        lambda: self.on_combo_selection_changed(motor_tuple[0], combo_box.currentText())
                         )
                     layout.addWidget(combo_box)
                 elif i == 4:
@@ -399,3 +400,10 @@ class MainWindow(QMainWindow):
             Qt.TransformationMode.SmoothTransformation
         )
         png_label.setPixmap(scaled_pixmap)
+
+    def on_combo_selection_changed(self, id: int, preset_name: str) -> None:
+        print(preset_name)
+        value = self.config_manager.get_value(id, "Preset_Positions", f"{preset_name}")
+        print(value)
+        widget = self.input_position.get(id)
+        widget.setText(value)

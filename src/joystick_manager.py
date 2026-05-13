@@ -6,6 +6,7 @@ class JoystickManager(QObject):
 
     create_pop_up = Signal(list)
     send_joystick_movement = Signal(tuple)
+    layout_changed = Signal(bool)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -58,9 +59,9 @@ class JoystickManager(QObject):
                 elif event.type == pygame.JOYAXISMOTION:
                     self.on_axis_moved(event.axis, event)
 
-        except Exception as error:
-            print(f"Joystick polling failed: {error}")
-            self.stop()
+        except Exception as e:
+            print(f"Joystick polling failed: {e}")
+            #self.stop()
 
     def _handle_device_added(self, event):
         if self.joystick is None:
@@ -79,11 +80,20 @@ class JoystickManager(QObject):
         if event.button == 3:
             test = ["Test"]
             self.create_pop_up.emit(test)
+        if event.button == 4:
+            print("Cool")
+            self._lb_button_down()
         if event.button == 5:
-            self.rb_button_down()
+            self._rb_button_down()
 
-    def rb_button_down(self):
-        print(f'[ControllerManager] double speed ON')
+    def _lb_button_down(self):
+        print(f"[JoystickManager]")
+        self.layout = not(self.layout)
+
+        self.layout_changed.emit(self.layout)
+
+    def _rb_button_down(self):
+        print(f'[JoystickManager] double speed ON')
         self.spd_factor = 2
 
         for motor_id, value in self.last_axis_values.items():
@@ -107,7 +117,7 @@ class JoystickManager(QObject):
                 self.send_joystick_movement.emit((motor_id, new_spd_pps))
     
     def on_axis_moved(self, axis, event):
-        parsed_axis = self.parse_axis(event.axis)
+        parsed_axis = int(self.parse_axis(event.axis))
         motor_id = self.axis_motor_dict.get(parsed_axis)
         value = event.value
 
@@ -145,8 +155,8 @@ class JoystickManager(QObject):
         else:    
             return parser.get(input)   
 
-    @Slot(dict)
-    def receive_axis_motor_pairs(self, axis_motor_pairs: dict[int, int]) -> None:
+    @Slot(object)
+    def receive_axis_motor_pairs(self, axis_motor_pairs) -> None:
         self.axis_motor_dict = axis_motor_pairs
         self.moving_motor = {key: False for key in axis_motor_pairs.values()}
         self.last_spd_send = {key: 0 for key in axis_motor_pairs.values()}
