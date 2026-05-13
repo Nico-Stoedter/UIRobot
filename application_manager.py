@@ -181,6 +181,7 @@ class ApplicationManager(QObject):
         motor = self.motor_manager.motors.get(controller_id)
 
         if motor.status["ena"] == 1:
+            print("Gruen")
             self.main_window.change_pixmap(controller_id, "gruen.png")
 
     @Slot(tuple)
@@ -194,12 +195,13 @@ class ApplicationManager(QObject):
         motor = self.motor_manager.motors.get(motor_id)
 
         if motor.status["ena"] == 1:  
+            print("Blau")
             self.main_window.change_pixmap(motor_id, "blau.png")
 
         if motor_id in self.security_requests and command == "qec":
             request = self.security_requests.get(motor_id)
             self.security_requests.pop(motor_id)
-            self.motor_manager.disable_all()
+            self.motor_manager.stop_all()
             self.pop_up.show_popup(request)
             
     
@@ -222,22 +224,36 @@ class ApplicationManager(QObject):
         """
         Handles and Processes User Joystick Inputs
         """
+        input_dict = {}
         motor_id = movement_data[0]
         motor = self.motor_manager.motors.get(motor_id)
         joy_deflection = movement_data[1]
         deadzone = motor.joy_deadzone
         spd_pps = motor.spd_pps
         joy_spd = int((spd_pps * joy_deflection) / 2)   # Max half the Config spd if RB not Pressed
+        max_pos_unit = motor.max_pos_unit
+        min_pos_unit = motor.min_pos_unit
 
         # Deadzone
         if joy_deflection <= deadzone and joy_deflection >= -deadzone:
             self.joystick_manager.moving_motor[motor_id] = False
             self.motor_manager.move_motor_joy(motor_id, 0)
-            self._on_motor_finished_moving(motor_id)
+            self._on_motor_finished_moving((motor_id, "spd"))
             return
         
         self.joystick_manager.moving_motor[motor_id] = True
-        self.motor_manager.move_motor_joy(motor_id, joy_spd)
+
+        if joy_spd > 0:
+            unit = max_pos_unit
+        elif joy_spd < 0:
+            unit = min_pos_unit
+
+        input_dict[motor_id] = unit
+        input_dict = self.security_positions_check(input_dict)
+        unit = input_dict.get(motor_id)
+        qec = self.unit_to_steps(motor_id, unit)
+
+        self.motor_manager.move_motor_joy(motor_id, joy_spd, qec)
         
     @Slot()
     def on_scan_completed(self):

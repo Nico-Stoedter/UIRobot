@@ -73,18 +73,13 @@ class MotorManager(QObject):
             msg = f"ADR{controller_id};QEC;"
             self.serial_manager.send_message(msg)
 
-    def move_motor_joy(self, motor_id, joy_spd) -> None:
+    def move_motor_joy(self, motor_id, joy_spd, qec=None) -> None:
         """Manages Joystick Movement"""
-        motor = self.motors.get(motor_id)
-        max_pos_stp = motor.max_pos_stp
-        min_pos_stp = motor.min_pos_stp
 
-        if joy_spd > 0:
-            msg = f"ADR={motor_id};SPD{joy_spd};QEC{int(max_pos_stp)};"
-        elif joy_spd < 0:
-            msg = f"ADR={motor_id};SPD{joy_spd};QEC{int(min_pos_stp)};"
-        else:
+        if qec == None:
             msg = f"ADR={motor_id};SPD{joy_spd};"
+        else:
+            msg = f"ADR={motor_id};SPD{joy_spd};QEC{qec};"
         
         self.serial_manager.send_message(msg)
     
@@ -122,7 +117,8 @@ class MotorManager(QObject):
         """Stop all motors."""
         for idx in self.address_list:
             if idx in self.motors:
-                self.motors[idx].stp(0)
+                msg = f"ADR={idx};STP0;"
+                self.serial_manager.send_message(msg)
 
     # Helper methods for data processing
     def get_32bit(self, data_bytes):
