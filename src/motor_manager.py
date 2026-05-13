@@ -12,8 +12,9 @@ class MotorManager(QObject):
     scan_completed = Signal()   # Signal for scan completion
     motor_ena = Signal(int) # Signal for ENA; Command
     motor_off = Signal(int) # SIgnal for OFF; Command
-    motor_starts_moving = Signal(int)
-    motor_finished_moving  = Signal(int)
+    motor_starts_moving = Signal(int)   
+    motor_finished_moving  = Signal(tuple)  # Tuple[motor_id, command]
+    security_position_reached = Signal(list)
 
     def __init__(self, serial_manager, config_manager=None):
         super().__init__()
@@ -208,7 +209,7 @@ class MotorManager(QObject):
                     status_update = {"maxStopSpeed": mmd if mmd >= 0 else (1 << 16) + mmd}
                 elif message_id == "B5" and len(data_bytes) == 3:  # SPD; set desired speed
                     spd = self.get_16bit(data_bytes)
-                    self.motor_finished_moving.emit(controller_id)
+                    self.motor_finished_moving.emit((controller_id, "spd"))
                     status_update = {"sSpd": spd}
                 elif message_id == "B6" and len(data_bytes) == 5:  # STP; Set desired incremental displacement
                     status_update = {"sDisplacement": self.get_32bit(data_bytes)}
@@ -260,7 +261,7 @@ class MotorManager(QObject):
                     status_update = {"S1": data_bytes[0], "S2": data_bytes[1], "S3": data_bytes[2], "AnalogIn": self.get_16bit(data_bytes[3:])}
                 elif message_id == "A8" and len(data_bytes) == 6:  # Unknown message
                     status_update = {"rEncoder": self.get_32bit(data_bytes[1:])}
-                    self.motor_finished_moving.emit(controller_id)
+                    self.motor_finished_moving.emit((controller_id, "qec"))
                     self.motor_ready.emit(controller_id, 1)
                 else:  # Other messages
                     acr, ena, direction, mcs = self.analyze_message_id(int(message_id, 16))

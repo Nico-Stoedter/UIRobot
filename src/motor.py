@@ -17,6 +17,7 @@ class Motor(QObject):
         self.spd_pps = int(self.config_manager.get_value(self.motor_id, 'Hardware_Config', 'Max_Speed(pps)'))
         self.joy_axis = int(self.config_manager.get_value(self.motor_id, 'Software_Config', 'Joystick_Axis'))
         self.joy_deadzone = float(self.config_manager.get_value(self.motor_id, 'Software_Config', 'Deadzone'))
+        self.security_pos = self.config_manager.get_security_positions(motor_id)
 
         self.status = {
             "acr": 0, "ena": 0, "direction": 1, "mcs": 16,

@@ -15,8 +15,8 @@ class ApplicationManager(QObject):
     Sorgt für das zusammenspiel von allen Managern und der UI
     """
     motors_scan_completed = Signal(list)
-    build_motor_page = Signal(object)
-    read_axis_motor_pairs = Signal(object)
+    build_motor_page = Signal(object)       # Object -> dict[]
+    read_axis_motor_pairs = Signal(object)  # Object -> dict[int, int]
 
     def __init__(self, window):
         super().__init__()
@@ -29,6 +29,8 @@ class ApplicationManager(QObject):
         self.motor_manager = MotorManager(self.serial_manager, self.config_manager)
         self.motor_position_poller = MotorPositionPoller()
         self.joystick_manager = JoystickManager()
+
+        self.security_requests = {} # dict[motor_id, list[security_txt]]
 
         # --- Test ---
 
@@ -181,20 +183,31 @@ class ApplicationManager(QObject):
         if motor.status["ena"] == 1:
             self.main_window.change_pixmap(controller_id, "gruen.png")
 
-    @Slot(int)
-    def _on_motor_finished_moving(self, controller_id):
-        motor = self.motor_manager.motors.get(controller_id)
+    @Slot(tuple)
+    def _on_motor_finished_moving(self, tuple):
+        """
+        Manages events that should occure when motor finishes moving
+        tupel[motor_id, command]
+        """
+        motor_id = tuple[0]
+        command = tuple[1]
+        motor = self.motor_manager.motors.get(motor_id)
 
         if motor.status["ena"] == 1:  
-            print(motor.status["ena"], "Cool") 
-            self.main_window.change_pixmap(controller_id, "blau.png")
+            self.main_window.change_pixmap(motor_id, "blau.png")
+
+        if motor_id in self.security_requests and command == "qec":
+            request = self.security_requests.get(motor_id)
+            self.security_requests.pop(motor_id)
+            self.motor_manager.disable_all()
+            self.pop_up.show_popup(request)
+            
     
     @Slot(int)
     def on_motor_enabled(self, controller_id) -> None:
         motor = self.motor_manager.motors.get(controller_id)
 
         if motor.status["ena"] == 0:
-            print(motor.status["ena"], "Cool") 
             self.main_window.change_pixmap(controller_id, "blau.png")
 
     @Slot(int)
@@ -206,12 +219,14 @@ class ApplicationManager(QObject):
     
     @Slot(tuple)
     def process_joystick_movement(self, movement_data: tuple[int, float]) -> None:
+        """
+        Handles and Processes User Joystick Inputs
+        """
         motor_id = movement_data[0]
         motor = self.motor_manager.motors.get(motor_id)
         joy_deflection = movement_data[1]
         deadzone = motor.joy_deadzone
         spd_pps = motor.spd_pps
-        spd_factor = self.joystick_manager.spd_factor   # Is 1 If RB not Pressed 2 Otherwise
         joy_spd = int((spd_pps * joy_deflection) / 2)   # Max half the Config spd if RB not Pressed
 
         # Deadzone
@@ -271,6 +286,10 @@ class ApplicationManager(QObject):
             return
 
     def on_confirm_btn_clicked(self):
+        """
+        Handles and Processes the User Input
+        """
+        # Get all not empty input fields
         input_dict = {
             motor_id: float(widget.text())
             for motor_id, widget in self.main_window.input_position.items()
@@ -287,10 +306,38 @@ class ApplicationManager(QObject):
             self.motor_manager.move_motor(motor_id, stp)
 
     def security_positions_check(self, input_dict) -> dict[int, float]:
-        for motor_id, unit_pos in input_dict.itmes():
+        """ 
+        Returns a dict mapping motor_id to the target position (float) that lies immediately 
+        before the next configured security point along the motor's current travel direction
+        """
+        new_input_dict = input_dict.copy()
+
+        for motor_id, target in input_dict.items():
             motor = self.motor_manager.motors.get(motor_id)
+            cur_pos_stp = motor.status["rEncoder"]
+            start = self.steps_to_unit(motor_id, cur_pos_stp)
+            direction = True if target >= start else False
+            security_pos: dict[tuple[float, bool], str] = motor.security_pos
+            security_request: dict[int, str] = {}   # dict[motor_id, security_txt]
             
-        return input_dict
+            candidates = [pos for (pos, dir), _ in security_pos.items() if dir == direction]
+            
+            on_path_candidates = [pos for pos in candidates if self.on_path(start, pos, target)]
+
+            if on_path_candidates:
+                # Wähle den Kandidaten mit minimaler Entfernung vom Start
+                next = min(on_path_candidates, key=lambda pos: abs(pos - start))
+                new_input_dict[motor_id] = next
+                security_txt = security_pos.get((next, direction))
+                self.security_requests[motor_id] = [security_txt]
+                
+        return new_input_dict
+    
+    def on_path(self, start, pos, target):
+        if start <= target:
+            return start <= pos <= target
+        else:
+            return target <= pos <= start
 
     def on_reset_btn_clicked(self):
         input_dict = {
