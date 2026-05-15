@@ -5,16 +5,16 @@ from src.motor_position_poller import MotorPositionPoller
 from src.motor_motion_profiles.x_y_motor_workspace import XYMotorWorkspace 
 
 class MotorManager(QObject):
-    motor_discovered = Signal(int, object)  # Signal for newly discovered motor
-    motor_state = Signal(int, dict)  # Signal for motor status update
-    motor_position = Signal(int, int)   # Signal for motor position update: motor_id, rEncoder 
-    motor_ready = Signal(int, int)  # Signal for motor ready state
-    scan_completed = Signal()   # Signal for scan completion
-    motor_ena = Signal(int) # Signal for ENA; Command
-    motor_off = Signal(int) # SIgnal for OFF; Command
-    motor_starts_moving = Signal(int)   
-    motor_finished_moving  = Signal(tuple)  # Tuple[motor_id, command]
-    security_position_reached = Signal(list)
+    motor_discovered = Signal(int, object)      # Signal(motor_id: int, Motor: object)
+    motor_state = Signal(int, dict)             # Signal for motor status update: Signal(motor_id: int, motor_status: dict[str, int])
+    motor_position = Signal(int, int)           # Signal for motor position update: Signal(motor_id: int, rEncoder: int) 
+    scan_completed = Signal() 
+    motor_ena = Signal(int)                     # Signal(motor_id: int)
+    motor_off = Signal(int)                     # Signal(motor_id: int)
+    motor_starts_moving = Signal(int)           # Signal(motor_id: int)
+    motor_finished_moving  = Signal(tuple)      # Signal(tuple[motor_id: int, command: str])
+    #security_position_reached = Signal(list)    # Signal(list[pop_up_msg: str])
+    pop_up_request = Signal(list)               # Signal(list[pop_up_error: str])
 
     def __init__(self, serial_manager, config_manager=None):
         super().__init__()
@@ -28,7 +28,7 @@ class MotorManager(QObject):
         # --- Motor Motion Profiles ---
         self.x_motor_id = 74
         self.y_motor_id = 75
-        self.x_y_motor_worspace = XYMotorWorkspace(self)
+        self.x_y_motor_workspace = XYMotorWorkspace(self.x_motor_id, self.y_motor_id, parent=self)
 
 
     def handle_serial_data(self, data):
@@ -83,13 +83,20 @@ class MotorManager(QObject):
         
         self.serial_manager.send_message(msg)
     
-    def move_motor(self, motor_id, position):
-        if motor_id in [74,75]:
-            self.x_y_motor_worspace.move_motor()
-        else:
-            self.move_normal(motor_id, position)
+    def move_motor(self, target_dict: dict[int, int]) -> None:
+        """
+        Executes the correct movement function based on the motor_id in input_dict[motor_id:int, target_stp:int]
+        """
+        for motor_id, target_stp in target_dict.items():
+            if motor_id in [74,75]:
+                x_target_stp = target_dict.get(74)
+                y_target_stp = target_dict.get(75)
+                self.x_y_motor_workspace.move_motor(x_target_stp, y_target_stp)
+            else:
+                self.move(motor_id, target_stp)
 
-    def move_normal(self, motor_id, position):
+
+    def move(self, motor_id, position):
         motor = self.motors.get(motor_id)
         msg = f"ADR={motor_id};SPD{motor.spd_pps};QEC{position};"
         self.serial_manager.send_message(msg)
@@ -185,7 +192,7 @@ class MotorManager(QObject):
                 self.motors[controller_id] = Motor(controller_id, self.serial_manager, self.config_manager)
                 self.address_list.append(controller_id)
                 self.address_list.sort()
-                self.motor_discovered.emit(controller_id, self.motors[controller_id]) # emit hat noch kein SLot
+                self.motor_discovered.emit(controller_id, self.motors[controller_id])
                 print(f"Motor {controller_id} registered from serial response")
 
         if controller_id in self.motors:
@@ -209,11 +216,9 @@ class MotorManager(QObject):
                     status_update = {"sSpd": spd}
                 elif message_id == "B6" and len(data_bytes) == 5:  # STP; Set desired incremental displacement
                     status_update = {"sDisplacement": self.get_32bit(data_bytes)}
-                    self.motor_ready.emit(controller_id, 2)
                 elif message_id == "B8" and len(data_bytes) == 5:  # QEC; Set desired quadrature encoder's position
                     status_update = {"sEncoder": self.get_32bit(data_bytes)}
                     self.motor_starts_moving.emit(controller_id)
-                    self.motor_ready.emit(controller_id, 2)
                 elif message_id == "BA" and len(data_bytes) == 1:  # ACR; ACR; Check auto-current reduction ratio
                     status_update = {"holdingCurrent": data_bytes[0]}
                 elif message_id == "C2" and len(data_bytes) == 3:  # QER; QER; Set desired quadrature encoder's position
@@ -242,7 +247,6 @@ class MotorManager(QObject):
                             "rSpd": self.get_16bit(data_bytes[1:4]),
                             "rDisplacement": self.get_32bit(data_bytes[4:])
                         })
-                        self.motor_ready.emit(controller_id, ena)
 
             elif header == "CC":  # Feedback header "CC"
                 if message_id == "B1" and len(data_bytes) == 5:  # QEC; Check current quadrature encoder's position
@@ -258,7 +262,6 @@ class MotorManager(QObject):
                 elif message_id == "A8" and len(data_bytes) == 6:  # Unknown message
                     status_update = {"rEncoder": self.get_32bit(data_bytes[1:])}
                     self.motor_finished_moving.emit((controller_id, "qec"))
-                    self.motor_ready.emit(controller_id, 1)
                 else:  # Other messages
                     acr, ena, direction, mcs = self.analyze_message_id(int(message_id, 16))
                     status_update = {"acr": acr, "ena": ena, "direction": direction, "mcs": mcs}
@@ -272,3 +275,9 @@ class MotorManager(QObject):
             if status_update:
                 motor.handle_status_update(status_update)
                 self.motor_state.emit(controller_id, motor.status)
+
+    # --- Signal Slots for Motor Motion Profiles ---
+
+    @Slot(list)
+    def x_y_out_of_range(self, error_list) -> None:
+        self.pop_up_request.emit(error_list)

@@ -55,6 +55,7 @@ class ApplicationManager(QObject):
         self.motor_manager.motor_off.connect(self.on_motor_disabled)
         self.motor_manager.motor_starts_moving.connect(self._on_motor_starts_moving)
         self.motor_manager.motor_finished_moving.connect(self._on_motor_finished_moving)
+        self.motor_manager.pop_up_request.connect(self.process_pop_up_request)
 
         # --- ApplicationManager Signals ---
         self.motors_scan_completed.connect(self.motor_position_poller.set_motor_ids)
@@ -69,7 +70,7 @@ class ApplicationManager(QObject):
 
         # --- ConfigManager Signals ---
         self.config_manager.key_error.connect(self.on_key_error_received)
-        self.config_manager.integrity_error.connect(self.on_integrity_check_failed)
+        self.config_manager.integrity_error.connect(self.process_pop_up_request)
 
         # --- JoystickManager Signals
         self.joystick_manager.send_joystick_movement.connect(self.process_joystick_movement)
@@ -281,8 +282,8 @@ class ApplicationManager(QObject):
         self.pop_up.show_popup([f"{key} not found. Ini might be wrong formated"])
 
     @Slot(list)
-    def on_integrity_check_failed(self, errors: list[str]):
-        self.pop_up.show_popup(errors)
+    def process_pop_up_request(self, message: list[str]) -> None:
+        self.pop_up.show_popup(message)
 
     @Slot()
     def on_position_update(self, motor_id, position):
@@ -322,9 +323,13 @@ class ApplicationManager(QObject):
         
         input_dict = self.security_positions_check(input_dict)
 
+        stp_input_dict = {} # dict[motor_id: int, stp: int]
+
         for motor_id, unit_pos in input_dict.items():
             stp = self.unit_to_steps(motor_id, unit_pos)
-            self.motor_manager.move_motor(motor_id, stp)
+            stp_input_dict[motor_id] = stp
+
+        self.motor_manager.move_motor(stp_input_dict)
 
     def security_positions_check(self, input_dict) -> dict[int, float]:
         """ 
