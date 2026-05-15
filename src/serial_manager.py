@@ -6,8 +6,8 @@ from src.serial_worker import SerialWorker
 import time
 
 class SerialManager(QObject):
-    data_received = Signal(bytes)  # Signal for GUI thread
-    exception_received = Signal(Exception)
+    data_received = Signal(bytes)           # Signal for GUI thread
+    exception_received = Signal(Exception)  # Signal(Worker_Exception: Exception)
 
     def __init__(self):
         super().__init__()

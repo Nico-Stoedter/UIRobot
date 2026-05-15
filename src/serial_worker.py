@@ -2,9 +2,9 @@ import serial
 from PySide6.QtCore import QObject, QTimer, Signal, Slot
 
 class SerialWorker(QObject):
-    data_received = Signal(bytes)  # Signal for sending received data
-    finished = Signal()  # Signal for thread completion
-    connection_failed = Signal(Exception)  # Signal for connection failure
+    data_received = Signal(bytes)           # Signal for sending received data
+    finished = Signal()                     # Signal for thread completion
+    connection_failed = Signal(Exception)   # Signal for connection failure
 
     def __init__(self, port, baudrate):
         super().__init__()
