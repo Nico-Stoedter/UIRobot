@@ -41,20 +41,18 @@ class JoystickManager(QObject):
 
     def _poll(self):
         try:
-            if self.axis_motor_dict == {}:
-                return
-
-            if self.pop_up: # No Movement if PopUp exists
-                return
-
             for event in pygame.event.get():
-                if event.type == pygame.JOYDEVICEADDED:
+                if self.pop_up: # No Movement if PopUp exists
+                    return
+                elif self.axis_motor_dict == {}:
+                    return
+                elif event.type == pygame.JOYDEVICEADDED:
                     self._handle_device_added(event)
-                if event.type == pygame.JOYDEVICEREMOVED:
+                elif event.type == pygame.JOYDEVICEREMOVED:
                     self._handle_device_removed(event)
-                if event.type == pygame.JOYBUTTONDOWN:
+                elif event.type == pygame.JOYBUTTONDOWN:
                     self.on_button_down(event.button, event)
-                if event.type == pygame.JOYBUTTONUP:
+                elif event.type == pygame.JOYBUTTONUP:
                     self.on_button_up(event.button, event)
                 elif event.type == pygame.JOYAXISMOTION:
                     self.on_axis_moved(event.axis, event)
