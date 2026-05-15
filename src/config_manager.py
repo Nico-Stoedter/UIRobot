@@ -124,7 +124,7 @@ class ConfigManager(QObject):
         # Sektion: Soft_Basic
         config["Software_Config"] = {
             "Device_Name": f"Axis-{motor_id}",
-            "Device_Type": "0",
+            "Device_Type": "1",
             "Max_Position": "3600.00",
             "Min_Position": "-3600.00",
             "Gear_Factor": "1",

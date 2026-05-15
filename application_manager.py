@@ -288,11 +288,16 @@ class ApplicationManager(QObject):
     def on_position_update(self, motor_id, position):
         """Handle individual motor position updates for Reset and Motor Page"""
         motor = self.motor_manager.motors.get(motor_id)
+        dev_type = motor.dev_type
         unit = motor.unit
 
         motor_page_labels = self.main_window.label_dict
         reset_page_labels = self.main_window.duplicate_label_dict
         pos_unit = self.steps_to_unit(motor_id, position)
+
+        if dev_type == 2:
+            pos_unit %= 360
+
         pos_unit = self.truncate(pos_unit, 2)
 
         if motor_id in motor_page_labels.keys():
@@ -330,15 +335,20 @@ class ApplicationManager(QObject):
 
         for motor_id, target in input_dict.items():
             motor = self.motor_manager.motors.get(motor_id)
+            dev_type = motor.dev_type
             cur_pos_stp = motor.status["rEncoder"]
             start = self.steps_to_unit(motor_id, cur_pos_stp)
             direction = True if target >= start else False
             security_pos: dict[tuple[float, bool], str] = motor.security_pos
-            security_request: dict[int, str] = {}   # dict[motor_id, security_txt]
             
             candidates = [pos for (pos, dir), _ in security_pos.items() if dir == direction]
+
+            if dev_type in [1,2]:
+                tol = 2     # Degree
+            else:
+                tol = 0.2   # mm
             
-            on_path_candidates = [pos for pos in candidates if self.on_path(start, pos, target)]
+            on_path_candidates = [pos for pos in candidates if self.on_path(start, pos, target, tol)]
 
             if on_path_candidates:
                 # Wähle den Kandidaten mit minimaler Entfernung vom Start
@@ -349,11 +359,11 @@ class ApplicationManager(QObject):
                 
         return new_input_dict
     
-    def on_path(self, start, pos, target):
+    def on_path(self, start, pos, target, tol=0.0) -> bool:
         if start <= target:
-            return start <= pos <= target
+            return (start + tol) <= pos <= target
         else:
-            return target <= pos <= start
+            return target <= pos <= (start - tol)
 
     def on_reset_btn_clicked(self):
         input_dict = {
