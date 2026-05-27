@@ -3,8 +3,8 @@ from PySide6.QtCore import QObject, Signal, QTimer, Slot
 from src.motor import Motor
 from src.motor_position_poller import MotorPositionPoller
 from src.motor_motion_profiles.x_y_motor_workspace import XYMotorWorkspace 
-
-import time
+from src.motor_motion_profiles.teleskoparm import TeleskopArm
+from src.motor_motion_profiles.rot_tran_motor import RotTranMotor
 
 class MotorManager(QObject):
     motor_discovered = Signal(int, object)      # Signal(motor_id: int, Motor: object)
@@ -29,10 +29,17 @@ class MotorManager(QObject):
         self.is_scanning = False
 
         # --- Motor Motion Profiles ---
+        self.r1_motor_id = 70
+        self.r3_motor_id = 71
+        self.special_motor = TeleskopArm(self.r1_motor_id, self.r3_motor_id, parent=self)
+
+        self.rot_motor_id = 72
+        self.trn_motor_id = 73
+        self.rot_tran_motor = None # Not implemented
+
         self.x_motor_id = 74
         self.y_motor_id = 75
         self.x_y_motor_workspace = XYMotorWorkspace(self.x_motor_id, self.y_motor_id, parent=self)
-
 
     def handle_serial_data(self, data):
         """Handle raw serial data emitted by the serial manager."""
@@ -128,7 +135,11 @@ class MotorManager(QObject):
         Executes the correct movement function based on the motor_id in input_dict[motor_id:int, target_stp:int]
         """
         for motor_id, target_stp in target_dict.items():
-            if motor_id in [74,75]:
+            if motor_id in [self.r1_motor_id, self.r3_motor_id]:        #70,71
+                pass
+            elif motor_id in [self.rot_motor_id, self.trn_motor_id]:    #72,73
+                pass
+            elif motor_id in [self.x_motor_id, self.y_motor_id]:        #74,75
                 x_target_stp = target_dict.get(74)
                 y_target_stp = target_dict.get(75)
                 self.x_y_motor_workspace.move_motor(x_target_stp, y_target_stp)
