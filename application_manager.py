@@ -10,6 +10,8 @@ from src.joystick_manager import JoystickManager
 from src.ui.pop_up import PopUp
 from src.ui.toast import Toast
 
+import math
+
 class ApplicationManager(QObject):
     """
     Sorgt für das zusammenspiel von allen Managern und der UI
@@ -17,6 +19,8 @@ class ApplicationManager(QObject):
     motors_scan_completed = Signal(list)
     build_motor_page = Signal(object)       # Object -> dict[]
     read_axis_motor_pairs = Signal(object)  # Object -> dict[int, int]
+    motors_settings = Signal()              # Sends the config settings to the motor
+    motor_hardware_info = Signal()          # Sends the hardware info to the config file
 
     def __init__(self, window):
         super().__init__()
@@ -31,6 +35,10 @@ class ApplicationManager(QObject):
         self.joystick_manager = JoystickManager()
 
         self.security_requests = {} # dict[motor_id, list[security_txt]]
+
+        # --- Motion Profiles ---
+        self.x_motor_id = 74
+        self.y_motor_id = 75
 
         # --- Test ---
 
@@ -56,11 +64,14 @@ class ApplicationManager(QObject):
         self.motor_manager.motor_starts_moving.connect(self._on_motor_starts_moving)
         self.motor_manager.motor_finished_moving.connect(self._on_motor_finished_moving)
         self.motor_manager.pop_up_request.connect(self.process_pop_up_request)
+        self.motor_manager.hardware_info.connect(self.config_manager.write_hardware_info)
 
         # --- ApplicationManager Signals ---
         self.motors_scan_completed.connect(self.motor_position_poller.set_motor_ids)
         self.build_motor_page.connect(self.main_window._setup_motor_page)
         self.read_axis_motor_pairs.connect(self.joystick_manager.receive_axis_motor_pairs)
+        self.motors_settings.connect(self.motor_manager.set_motor_settings)
+        self.motor_hardware_info.connect(self.motor_manager.get_hardware_info)
 
         # --- MotorPositionPoller Signals ---
         self.motor_position_poller.poll_motor.connect(self.motor_manager.get_motor_position)
@@ -143,6 +154,26 @@ class ApplicationManager(QObject):
 
         return False
     
+    def process_x_y_workspace(self, x_joy_deflection, y_joy_deflection):
+            x_motor = self.motor_manager.motors.get(self.x_motor_id)
+            max_value = x_motor.max_pos_stp
+            max_spd = x_motor.spd_pps / 2
+
+            length = math.sqrt(x_joy_deflection**2 + y_joy_deflection**2)
+
+            if length > 1.0:
+                x_joy_deflection /= length
+                y_joy_deflection /= length
+                length = 1.0
+
+            spd = int(length * max_value)
+
+            qec_x = int(x_joy_deflection * max_value)
+            qec_y = int(y_joy_deflection * max_value)
+
+            self.motor_manager.move_motor_joy(self.x_motor_id, spd, qec_x)
+            self.motor_manager.move_motor_joy(self.y_motor_id, spd, qec_y)
+    
     def get_all_joy_axis_motor_pairs(self, motor_ids) -> dict[int, int]:
         axis_motor_dict = {}
 
@@ -182,11 +213,10 @@ class ApplicationManager(QObject):
         motor = self.motor_manager.motors.get(controller_id)
 
         if motor.status["ena"] == 1:
-            print("Gruen")
-            self.main_window.change_pixmap(controller_id, "gruen.png")
+            self.main_window.change_pixmap(controller_id, "blau.png")
 
     @Slot(tuple)
-    def _on_motor_finished_moving(self, tuple):
+    def _on_motor_finished_moving(self, tuple: tuple[int, str]) -> None:
         """
         Manages events that should occure when motor finishes moving
         tupel[motor_id, command]
@@ -196,8 +226,7 @@ class ApplicationManager(QObject):
         motor = self.motor_manager.motors.get(motor_id)
 
         if motor.status["ena"] == 1:  
-            print("Blau")
-            self.main_window.change_pixmap(motor_id, "blau.png")
+            self.main_window.change_pixmap(motor_id, "gruen.png")
 
         if motor_id in self.security_requests and command == "qec":
             request = self.security_requests.get(motor_id)
@@ -211,7 +240,7 @@ class ApplicationManager(QObject):
         motor = self.motor_manager.motors.get(controller_id)
 
         if motor.status["ena"] == 0:
-            self.main_window.change_pixmap(controller_id, "blau.png")
+            self.main_window.change_pixmap(controller_id, "gruen.png")
 
     @Slot(int)
     def on_motor_disabled(self, controller_id) -> None:
@@ -220,41 +249,54 @@ class ApplicationManager(QObject):
         if motor.status["ena"] == 1:
             self.main_window.change_pixmap(controller_id, "rot.png")
     
-    @Slot(tuple)
-    def process_joystick_movement(self, movement_data: tuple[int, float]) -> None:
+    @Slot(object)
+    def process_joystick_movement(self, movement_data: dict[int, float]) -> None:
         """
         Handles and Processes User Joystick Inputs
         """
         input_dict = {}
-        motor_id = movement_data[0]
-        motor = self.motor_manager.motors.get(motor_id)
-        joy_deflection = movement_data[1]
-        deadzone = motor.joy_deadzone
-        spd_pps = motor.spd_pps
-        joy_spd = int((spd_pps * joy_deflection) / 2)   # Max half the Config spd if RB not Pressed
-        max_pos_unit = motor.max_pos_unit
-        min_pos_unit = motor.min_pos_unit
 
-        # Deadzone
-        if joy_deflection <= deadzone and joy_deflection >= -deadzone:
-            self.joystick_manager.moving_motor[motor_id] = False
-            self.motor_manager.move_motor_joy(motor_id, 0)
-            self._on_motor_finished_moving((motor_id, "spd"))
-            return
+        # IDs for the XYMotorWorkspace
+        x_motor_id = self.x_motor_id    
+        y_motor_id = self.y_motor_id
+
+        # Only in Special Cases like in XYMotorWorkspace() movement_data has more than 1 item
+        for motor_id, joy_deflection in movement_data.items(): 
+            motor = self.motor_manager.motors.get(motor_id)
+            deadzone = motor.joy_deadzone
+            spd_pps = motor.spd_pps
+            joy_spd = int((spd_pps * joy_deflection) / 2)   # Max half the Config spd if RB not Pressed
+            max_pos_unit = motor.max_pos_unit
+            min_pos_unit = motor.min_pos_unit
+
+            # Deadzone
+            if joy_deflection <= deadzone and joy_deflection >= -deadzone:
+                self.joystick_manager.moving_motor[motor_id] = False
+                self.motor_manager.move_motor_joy(motor_id, 0)
+                self._on_motor_finished_moving((motor_id, "spd"))
+                continue
+
+            if motor_id in [x_motor_id, y_motor_id]:
+                x_movement = movement_data[x_motor_id]
+                y_movement = movement_data[y_motor_id]
+                self.joystick_manager.moving_motor[x_motor_id] = True
+                self.joystick_manager.moving_motor[y_motor_id] = True
+                self.process_x_y_workspace(x_movement, y_movement)
+                continue
         
-        self.joystick_manager.moving_motor[motor_id] = True
+            self.joystick_manager.moving_motor[motor_id] = True
 
-        if joy_spd > 0:
-            unit = max_pos_unit
-        elif joy_spd < 0:
-            unit = min_pos_unit
+            if joy_spd > 0:
+                unit = max_pos_unit
+            elif joy_spd < 0:
+                unit = min_pos_unit
 
-        input_dict[motor_id] = unit
-        input_dict = self.security_positions_check(input_dict)
-        unit = input_dict.get(motor_id)
-        qec = self.unit_to_steps(motor_id, unit)
+            input_dict[motor_id] = unit
+            input_dict = self.security_positions_check(input_dict)
+            unit = input_dict.get(motor_id)
+            qec = self.unit_to_steps(motor_id, unit)
 
-        self.motor_manager.move_motor_joy(motor_id, joy_spd, qec)
+            self.motor_manager.move_motor_joy(motor_id, joy_spd, qec)
         
     @Slot()
     def on_scan_completed(self):
@@ -270,6 +312,8 @@ class ApplicationManager(QObject):
         self.build_motor_page.emit(self.motor_manager.motors)  
         self.read_axis_motor_pairs.emit(axis_motor_pairs)
         self.motors_scan_completed.emit(scanned_motor_ids)
+        self.motors_settings.emit()
+        self.motor_hardware_info.emit()
         self.change_joystick_layout_ui(False)   # False because intial layout ist axis 1-5
 
     @Slot(Exception)

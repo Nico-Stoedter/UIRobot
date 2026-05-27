@@ -178,7 +178,7 @@ class MainWindow(QMainWindow):
 
         # 1. Add Header
         if scroll_widget == self.ui.scrollAreaWidgetContents:
-            headers = ["Name", "Target Pos", "Current Pos", "Preset", "Test"] 
+            headers = ["Name", "Target Pos", "Current Pos", "Preset", "Status"] 
         else:
             headers = ["Name", "Reset Pos", "Current Pos"]
 
@@ -308,6 +308,7 @@ class MainWindow(QMainWindow):
                     label.setText(f"{first_pos} {motor_tuple[1].unit}")
                     label.setMinimumWidth(100)
                     label.setMaximumWidth(300)
+                    label.setMaximumHeight(50)
                     layout.addWidget(label)
                     self.label_dict[motor_tuple[0]] = label
                 elif i == 3:
@@ -319,7 +320,7 @@ class MainWindow(QMainWindow):
                     combo_box.addItems(preset_names)
                     combo_box.setMinimumWidth(100)
                     combo_box.setMaximumWidth(300)
-                    combo_box.setMinimumHeight(50)
+                    combo_box.setMaximumHeight(50)
                     combo_box.currentTextChanged.connect(
                         lambda: self.on_combo_selection_changed(motor_tuple[0], combo_box.currentText())
                         )

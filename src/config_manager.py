@@ -1,4 +1,4 @@
-from PySide6.QtCore import QObject ,Signal
+from PySide6.QtCore import QObject ,Signal, Slot
 
 import configparser 
 import os
@@ -269,6 +269,33 @@ class ConfigManager(QObject):
             return False
         else:
             raise ValueError(f"cannot convert '{value}' to bool; expected 0/1 or True/False")
+        
+    @Slot(int, str)
+    def write_hardware_info(self, motor_id: int, hardware_info: str) -> None:
+        """Writes the hardware info into the .ini file"""
+        file_path = self.get_file_path(motor_id)
+
+        # ini neu einlesen
+        config = configparser.RawConfigParser()
+        config.optionxform = str
+        config.read(file_path, encoding='utf-8')
+
+        if "Hardware_Info" not in config:
+            config["Hardware_Info"] = {}
+
+        available_encoder = hardware_info[2]
+        available_closed_loop = hardware_info[4]
+        available_adv_motion = hardware_info[5]
+
+        config["Hardware_Info"]["Available_Encoder"] = available_encoder
+        config["Hardware_Info"]["Available_ClosedLoop"] = available_closed_loop
+        config["Hardware_Info"]["Available_AdvMotion"] = available_adv_motion
+
+        # zurückschreiben
+        with open(file_path, "w", encoding="utf-8") as configfile:
+            config.write(configfile, space_around_delimiters=False)
+
+        print(f"[IniManager] Hardware info updated in {file_path}")
 
 # --- Zum Testen ---
 if __name__ == '__main__':

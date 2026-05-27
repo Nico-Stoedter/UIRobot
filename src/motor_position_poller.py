@@ -1,5 +1,8 @@
 from PySide6.QtCore import Signal, QObject, QTimer, Slot
 
+import pygame
+import math
+
 class MotorPositionPoller(QObject):
     poll_motor = Signal(int)           # motor_id 
     position_ready = Signal(int, int)  # motor_id, position
@@ -19,7 +22,7 @@ class MotorPositionPoller(QObject):
         self.motor_ids = motor_ids
         self.motor_index = 0
         print(f"Poller: {len(motor_ids)} Motoren konfiguriert")
-        self.start_polling(40)
+        self.start_polling(50)
 
     def start_polling(self, interval_ms):
         """Startet kontinuierliche Abfragen"""

@@ -4,6 +4,8 @@ from src.motor import Motor
 from src.motor_position_poller import MotorPositionPoller
 from src.motor_motion_profiles.x_y_motor_workspace import XYMotorWorkspace 
 
+import time
+
 class MotorManager(QObject):
     motor_discovered = Signal(int, object)      # Signal(motor_id: int, Motor: object)
     motor_state = Signal(int, dict)             # Signal for motor status update: Signal(motor_id: int, motor_status: dict[str, int])
@@ -13,8 +15,9 @@ class MotorManager(QObject):
     motor_off = Signal(int)                     # Signal(motor_id: int)
     motor_starts_moving = Signal(int)           # Signal(motor_id: int)
     motor_finished_moving  = Signal(tuple)      # Signal(tuple[motor_id: int, command: str])
-    #security_position_reached = Signal(list)    # Signal(list[pop_up_msg: str])
+    #security_position_reached = Signal(list)   # Signal(list[pop_up_msg: str])
     pop_up_request = Signal(list)               # Signal(list[pop_up_error: str])
+    hardware_info = Signal(int, str)            # Signal(motor_id: int, hardware_info: str)
 
     def __init__(self, serial_manager, config_manager=None):
         super().__init__()
@@ -67,10 +70,47 @@ class MotorManager(QObject):
         self.is_scanning = False
         self.scan_completed.emit()  # Or handle completion differently
 
+    def set_motor_settings(self):
+        """Set motor settings from config manager"""
+        for motor_id, motor in self.motors.items():
+            backlash = motor.backlash_comp
+            phase_current = int(motor.phase_current_a * 10)  # Convert to 0 - 80 scale for hardware: 80 = 8.0 Ampere
+            current_reduction = motor.current_reduction_pct
+            micro_stepping = motor.micro_stepping
+
+            msg = (
+                f"ADR={motor_id};"
+                f"BLC{backlash};"
+                f"CUR{phase_current};"
+                f"MCS{micro_stepping};"
+                f"ACR{current_reduction};"
+            )
+            self.serial_manager.send_message(msg)
+        
+        for motor_id, motor in self.motors.items():
+            acc_rate = motor.acc_rate_ms
+            dec_rate = motor.dec_rate_ms
+            start_spd = motor.start_spd_pps
+            stop_spd = motor.stop_spd_pps
+
+            msg = (
+                f"ADR={motor_id};"
+                f"MAC{acc_rate};"
+                f"MDE{dec_rate};"
+                f"MMS{start_spd};"
+                f"MMD{stop_spd};"
+            )
+            self.serial_manager.send_message(msg)
+
+    def get_hardware_info(self):
+        for motor_id, motor in self.motors.items():
+            msg = f"ADR={motor_id};MCF;"
+            self.serial_manager.send_message(msg)
+
     def get_motor_position(self, controller_id):
         """Request the current motor position from hardware."""
         if controller_id in self.motors:
-            msg = f"ADR{controller_id};QEC;"
+            msg = f"ADR={controller_id};QEC;"
             self.serial_manager.send_message(msg)
 
     def move_motor_joy(self, motor_id, joy_spd, qec=None) -> None:
@@ -200,7 +240,12 @@ class MotorManager(QObject):
             status_update = {}
 
             if header == "AA":  # Feedback header "AA"
-                if message_id == "B1" and len(data_bytes) == 6:  # MAC; MAC; set acceleration rate
+                if message_id == "B0" and len(data_bytes) == 3: # MCFη; MCF; master configuration register
+                    mcf = self.get_16bit(data_bytes)
+                    bin16 = format(mcf & 0xFFFF, "016b")
+                    print(bin16[2], bin16[4], bin16[5])
+                    self.hardware_info.emit(controller_id, bin16)
+                elif message_id == "B1" and len(data_bytes) == 6:  # MAC; MAC; set acceleration rate
                     status_update = {"AM": data_bytes[0], "accRate": self.get_32bit(data_bytes[1:])}
                 elif message_id == "B2" and len(data_bytes) == 6:  # MDE; MDE; set deceleration rate
                     status_update = {"DM": data_bytes[0], "decRate": self.get_32bit(data_bytes[1:])}

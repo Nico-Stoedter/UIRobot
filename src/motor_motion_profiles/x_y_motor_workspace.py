@@ -29,9 +29,6 @@ class XYMotorWorkspace(QObject):
         y_target_stp = y_cur_pos_stp if y_target_stp is None else y_target_stp
 
         combined_target_stp = math.sqrt(x_target_stp**2 + y_target_stp**2)
-        print(x_target_stp, y_target_stp)
-        print(combined_target_stp)
-        print(x_y_max_pos_stp)
 
         if combined_target_stp > x_y_max_pos_stp + 0.01:    # With some tolerance
             error_msg = ["Motor IDs: 74,75 moved out of range"]
@@ -39,3 +36,6 @@ class XYMotorWorkspace(QObject):
         else:
             self.motor_manager.move(self.x_motor_id, x_target_stp)
             self.motor_manager.move(self.y_motor_id, y_target_stp)
+
+    def move_motor_joy(self):
+        pass

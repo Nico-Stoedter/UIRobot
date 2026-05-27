@@ -4,9 +4,9 @@ import pygame
 
 class JoystickManager(QObject):
 
-    create_pop_up = Signal(list)
-    send_joystick_movement = Signal(tuple)
-    layout_changed = Signal(bool)
+    create_pop_up = Signal(list)            # Signal(list[message: str])
+    send_joystick_movement = Signal(object) # Signal(dict[motor_id: int, joy_deflection: float]) dict is object because of Conversion error otherwise
+    layout_changed = Signal(bool)           # Changes the coloring of the device names on the motor page ui
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -22,10 +22,14 @@ class JoystickManager(QObject):
         self.last_axis_values: dict[int, int] = {}    # Need to Remember last spd to Enable Correct RB Button spd during Joystick use
         self.moving_motor: dict[int, bool] = {}
 
+        # IDs for the XYMotorWorkspace
+        self.x_motor_id = 74    
+        self.y_motor_id = 75
+
         self._connect_first_available_joystick()
 
         self._timer = QTimer(self)
-        self._timer.setInterval(50)
+        self._timer.setInterval(10)
         self._timer.timeout.connect(self._poll)
         self._timer.start()
 
@@ -57,9 +61,10 @@ class JoystickManager(QObject):
                 elif event.type == pygame.JOYAXISMOTION:
                     self.on_axis_moved(event.axis, event)
 
+                pygame.event.clear()
+
         except Exception as e:
             print(f"Joystick polling failed: {e}")
-            #self.stop()
 
     def _handle_device_added(self, event):
         if self.joystick is None:
@@ -115,6 +120,7 @@ class JoystickManager(QObject):
                 self.send_joystick_movement.emit((motor_id, new_spd_pps))
     
     def on_axis_moved(self, axis, event):
+        input_dict = {}
         parsed_axis = int(self.parse_axis(event.axis))
         motor_id = self.axis_motor_dict.get(parsed_axis)
         value = event.value
@@ -126,7 +132,21 @@ class JoystickManager(QObject):
             value = (((event.value + 1) / 2) * -1) * self.spd_factor
 
         self.last_axis_values[motor_id] = value
-        self.send_joystick_movement.emit((motor_id, value))
+
+        if motor_id == self.x_motor_id:
+            x_value = self.joystick.get_axis(0)
+            y_value = -self.joystick.get_axis(1)
+            input_dict[motor_id] = x_value
+            input_dict[motor_id + 1] = y_value
+        elif motor_id == self.y_motor_id:
+            x_value = self.joystick.get_axis(0)
+            y_value = -self.joystick.get_axis(1)
+            input_dict[motor_id - 1] = x_value
+            input_dict[motor_id] = y_value
+        else:
+            input_dict[motor_id] = value
+
+        self.send_joystick_movement.emit(input_dict)
 
     def parse_axis(self, input: int) -> str:
         '''Parses Pygame axis number to omnivac axis'''

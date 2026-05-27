@@ -9,15 +9,26 @@ class Motor(QObject):
         self.config_manager.check_existing_ini(self.motor_id)
         
         self.device_name = self.config_manager.get_value(self.motor_id, 'Software_Config', 'Device_Name')
+        self.dev_type = int(self.config_manager.get_value(self.motor_id, 'Software_Config', 'Device_Type'))
         self.max_pos_unit = float(self.config_manager.get_value(self.motor_id, 'Software_Config', 'Max_Position'))
         self.min_pos_unit = float(self.config_manager.get_value(self.motor_id, 'Software_Config', 'Min_Position'))
         self.max_pos_stp = self.unit_to_steps(self.motor_id, self.max_pos_unit)
         self.min_pos_stp = self.unit_to_steps(self.motor_id, self.min_pos_unit)
         self.unit = self.config_manager.get_value(self.motor_id, 'Software_Config', 'Unit')
-        self.spd_pps = int(self.config_manager.get_value(self.motor_id, 'Hardware_Config', 'Max_Speed(pps)'))
         self.joy_axis = int(self.config_manager.get_value(self.motor_id, 'Software_Config', 'Joystick_Axis'))
         self.joy_deadzone = float(self.config_manager.get_value(self.motor_id, 'Software_Config', 'Deadzone'))
-        self.dev_type = int(self.config_manager.get_value(self.motor_id, 'Software_Config', 'Device_Type'))
+
+        self.spd_pps = int(self.config_manager.get_value(self.motor_id, 'Hardware_Config', 'Max_Speed(pps)'))
+        self.acc_rate_ms = int(self.config_manager.get_value(self.motor_id, 'Hardware_Config', 'Acceleration_Rate(ms)'))
+        self.dec_rate_ms = int(self.config_manager.get_value(self.motor_id, 'Hardware_Config', 'Deceleration_Rate(ms)'))
+        self.start_spd_pps = int(self.config_manager.get_value(self.motor_id, 'Hardware_Config', 'Start_Speed(pps)'))
+        self.stop_spd_pps = int(self.config_manager.get_value(self.motor_id, 'Hardware_Config', 'Stop_Speed(pps)'))
+        self.backlash_comp = int(self.config_manager.get_value(self.motor_id, 'Hardware_Config', 'Backlash_Compensation'))
+        self.phase_current_a = float(self.config_manager.get_value(self.motor_id, 'Hardware_Config', 'Phase_Current(A)'))
+        self.current_reduction_pct = int(self.config_manager.get_value(self.motor_id, 'Hardware_Config', 'Current_Reduction(%)'))
+        self.micro_stepping = int(self.config_manager.get_value(self.motor_id, 'Hardware_Config', 'Micro_Stepping'))
+        self.direction = int(self.config_manager.get_value(self.motor_id, 'Hardware_Config', 'Direction'))
+
         self.security_pos = self.config_manager.get_security_positions(motor_id)
 
         self.status = {
