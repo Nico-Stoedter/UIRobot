@@ -71,8 +71,8 @@ class ApplicationManager(QObject):
         self.motors_scan_completed.connect(self.motor_position_poller.set_motor_ids)
         self.build_motor_page.connect(self.main_window._setup_motor_page)
         self.read_axis_motor_pairs.connect(self.joystick_manager.receive_axis_motor_pairs)
-        self.motors_settings.connect(self.motor_manager.set_motor_settings)
-        self.motor_hardware_info.connect(self.motor_manager.get_hardware_info)
+        #self.motors_settings.connect(self.motor_manager.set_motor_settings)
+        #self.motor_hardware_info.connect(self.motor_manager.hardware_info)
 
         # --- MotorPositionPoller Signals ---
         self.motor_position_poller.poll_motor.connect(self.motor_manager.get_motor_position)

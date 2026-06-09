@@ -57,7 +57,7 @@ class MotorManager(QObject):
         message_id = hex(data[2])[2:].upper()
         terminator = hex(data[-1])[2:].upper()
         data_bytes = data[3:-1]
-        print(f"Received message: Header={header}, ID={controller_id}, Message={message_id}, Data={data_bytes}, Terminator={terminator}")
+        #print(f"Received message: Header={header}, ID={controller_id}, Message={message_id}, Data={data_bytes}, Terminator={terminator}")
         self.process_message(header, controller_id, message_id, data_bytes, terminator)
 
     @Slot()
