@@ -22,6 +22,7 @@ class SerialWorker(QObject):
             self.timer = None
 
         try:
+            print(self.port)
             self.serial_connection = serial.Serial(self.port, self.baudrate, timeout=1)
             self.running = True
             self.timer = QTimer(self)
@@ -41,6 +42,7 @@ class SerialWorker(QObject):
 
     def send_message(self, message):
         """Send a message via the serial port."""
+        print("Cool")
         if self.serial_connection and self.serial_connection.is_open:
             self.serial_connection.write(message.encode('utf-8'))
             print(f"Sent: {message}")

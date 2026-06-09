@@ -11,6 +11,7 @@ from src.ui.pop_up import PopUp
 from src.ui.toast import Toast
 
 import math
+import sys
 
 class ApplicationManager(QObject):
     """
@@ -94,6 +95,11 @@ class ApplicationManager(QObject):
         """Connect to serial port and scan for motors"""
         serial_settings = self.main_window.get_connection_settings()
 
+        if sys.platform.startswith("lin"):
+            port = "/dev/" + serial_settings["port"]
+        elif sys.platform.startswith("win"):
+            port = serial_settings["port"]
+
         if self.serial_manager.thread and self.serial_manager.thread.isRunning():
             self.serial_manager.thread.wait(100)
 
@@ -101,7 +107,7 @@ class ApplicationManager(QObject):
 
         # Connect to serial port
         success, message = self.serial_manager.open_connection(
-            serial_settings['port'],
+            port,
             serial_settings['baud']
         )
 
@@ -195,7 +201,6 @@ class ApplicationManager(QObject):
             motor = self.motor_manager.motors.get(motor_id)
             joystick_axis = motor.joy_axis
 
-            print(motor.joy_axis)
             if layout:
                 if joystick_axis > 5:
                     label.setStyleSheet("color: yellow;")
@@ -214,6 +219,7 @@ class ApplicationManager(QObject):
 
         if motor.status["ena"] == 1:
             self.main_window.change_pixmap(controller_id, "blau.png")
+            print("Status changed blau")
 
     @Slot(tuple)
     def _on_motor_finished_moving(self, tuple: tuple[int, str]) -> None:
@@ -227,6 +233,7 @@ class ApplicationManager(QObject):
 
         if motor.status["ena"] == 1:  
             self.main_window.change_pixmap(motor_id, "gruen.png")
+            print("Status changed gruen")
 
         if motor_id in self.security_requests and command == "qec":
             request = self.security_requests.get(motor_id)
@@ -236,18 +243,20 @@ class ApplicationManager(QObject):
             
     
     @Slot(int)
-    def on_motor_enabled(self, controller_id) -> None:
-        motor = self.motor_manager.motors.get(controller_id)
-
+    def on_motor_enabled(self, motor_id) -> None:
+        motor = self.motor_manager.motors.get(motor_id)
+        print(motor.status["ena"], motor_id)
         if motor.status["ena"] == 0:
-            self.main_window.change_pixmap(controller_id, "gruen.png")
+            self.main_window.change_pixmap(motor_id, "gruen.png")
+            print("Status changed gruen")
 
     @Slot(int)
-    def on_motor_disabled(self, controller_id) -> None:
-        motor = self.motor_manager.motors.get(controller_id)
-
+    def on_motor_disabled(self, motor_id) -> None:
+        motor = self.motor_manager.motors.get(motor_id)
+        print(motor.status["ena"], motor_id)
         if motor.status["ena"] == 1:
-            self.main_window.change_pixmap(controller_id, "rot.png")
+            self.main_window.change_pixmap(motor_id, "rot.png")
+            print("Status changed rot")
     
     @Slot(object)
     def process_joystick_movement(self, movement_data: dict[int, float]) -> None:
@@ -263,6 +272,10 @@ class ApplicationManager(QObject):
         # Only in Special Cases like in XYMotorWorkspace() movement_data has more than 1 item
         for motor_id, joy_deflection in movement_data.items(): 
             motor = self.motor_manager.motors.get(motor_id)
+
+            if motor is None:
+                continue
+
             deadzone = motor.joy_deadzone
             spd_pps = motor.spd_pps
             joy_spd = int((spd_pps * joy_deflection) / 2)   # Max half the Config spd if RB not Pressed
@@ -272,7 +285,7 @@ class ApplicationManager(QObject):
             # Deadzone
             if joy_deflection <= deadzone and joy_deflection >= -deadzone:
                 self.joystick_manager.moving_motor[motor_id] = False
-                self.motor_manager.move_motor_joy(motor_id, 0)
+                self.motor_manager.move_motor_joy(motor_id, motor.encoder, 0)
                 self._on_motor_finished_moving((motor_id, "spd"))
                 continue
 
@@ -285,7 +298,12 @@ class ApplicationManager(QObject):
                 continue
         
             self.joystick_manager.moving_motor[motor_id] = True
+            self.joystick_manager.moving_motor[motor_id] = True
 
+            if joy_spd > 0:
+                unit = max_pos_unit
+            elif joy_spd < 0:
+                unit = min_pos_unit
             if joy_spd > 0:
                 unit = max_pos_unit
             elif joy_spd < 0:
@@ -294,9 +312,15 @@ class ApplicationManager(QObject):
             input_dict[motor_id] = unit
             input_dict = self.security_positions_check(input_dict)
             unit = input_dict.get(motor_id)
-            qec = self.unit_to_steps(motor_id, unit)
 
-            self.motor_manager.move_motor_joy(motor_id, joy_spd, qec)
+            if motor.encoder == "1":
+                encoder = True
+                position = self.unit_to_steps(motor_id, unit)
+            else:
+                encoder = False
+                position = self.unit_to_steps(motor_id, unit)
+
+            self.motor_manager.move_motor_joy(motor_id, joy_spd, encoder, position)
         
     @Slot()
     def on_scan_completed(self):

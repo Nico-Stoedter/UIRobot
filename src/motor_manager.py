@@ -57,7 +57,7 @@ class MotorManager(QObject):
         message_id = hex(data[2])[2:].upper()
         terminator = hex(data[-1])[2:].upper()
         data_bytes = data[3:-1]
-        #print(f"Received message: Header={header}, ID={controller_id}, Message={message_id}, Data={data_bytes}, Terminator={terminator}")
+        print(f"Received message: Header={header}, ID={controller_id}, Message={message_id}, Data={data_bytes}, Terminator={terminator}")
         self.process_message(header, controller_id, message_id, data_bytes, terminator)
 
     @Slot()
@@ -77,56 +77,28 @@ class MotorManager(QObject):
         self.is_scanning = False
         self.scan_completed.emit()  # Or handle completion differently
 
-    def set_motor_settings(self):
-        """Set motor settings from config manager"""
-        for motor_id, motor in self.motors.items():
-            backlash = motor.backlash_comp
-            phase_current = int(motor.phase_current_a * 10)  # Convert to 0 - 80 scale for hardware: 80 = 8.0 Ampere
-            current_reduction = motor.current_reduction_pct
-            micro_stepping = motor.micro_stepping
-
-            msg = (
-                f"ADR={motor_id};"
-                f"BLC{backlash};"
-                f"CUR{phase_current};"
-                f"MCS{micro_stepping};"
-                f"ACR{current_reduction};"
-            )
-            self.serial_manager.send_message(msg)
-        
-        for motor_id, motor in self.motors.items():
-            acc_rate = motor.acc_rate_ms
-            dec_rate = motor.dec_rate_ms
-            start_spd = motor.start_spd_pps
-            stop_spd = motor.stop_spd_pps
-
-            msg = (
-                f"ADR={motor_id};"
-                f"MAC{acc_rate};"
-                f"MDE{dec_rate};"
-                f"MMS{start_spd};"
-                f"MMD{stop_spd};"
-            )
-            self.serial_manager.send_message(msg)
-
-    def get_hardware_info(self):
-        for motor_id, motor in self.motors.items():
-            msg = f"ADR={motor_id};MCF;"
-            self.serial_manager.send_message(msg)
-
-    def get_motor_position(self, controller_id):
+    def get_motor_position(self, motor_id):
         """Request the current motor position from hardware."""
-        if controller_id in self.motors:
-            msg = f"ADR={controller_id};QEC;"
+        if motor_id in self.motors:
+            motor = self.motors.get(motor_id)
+            
+            if motor.encoder == "1":
+                msg = f"ADR={motor_id};QEC;"
+            else:
+                msg = f"ADR={motor_id};POS;"
+
             self.serial_manager.send_message(msg)
 
-    def move_motor_joy(self, motor_id, joy_spd, qec=None) -> None:
+    def move_motor_joy(self, motor_id, joy_spd, encoder, position=None) -> None:
         """Manages Joystick Movement"""
 
-        if qec == None:
+        if position == None:
             msg = f"ADR={motor_id};SPD{joy_spd};"
         else:
-            msg = f"ADR={motor_id};SPD{joy_spd};QEC{qec};"
+            if encoder:     
+                msg = f"ADR={motor_id};SPD{joy_spd};QEC{position};"
+            else:
+                msg = f"ADR={motor_id};SPD{joy_spd};POS{position};"
         
         self.serial_manager.send_message(msg)
     
@@ -149,7 +121,12 @@ class MotorManager(QObject):
 
     def move(self, motor_id, position):
         motor = self.motors.get(motor_id)
-        msg = f"ADR={motor_id};SPD{motor.spd_pps};QEC{position};"
+
+        if motor.encoder == "1":
+            msg = f"ADR={motor_id};SPD{motor.spd_pps};QEC{position};"
+        else:
+            msg = f"ADR={motor_id};SPD{motor.spd_pps};POS{position};"
+
         self.serial_manager.send_message(msg)
 
     def reset_position(self, motor_id, stp):
@@ -272,6 +249,9 @@ class MotorManager(QObject):
                     status_update = {"sSpd": spd}
                 elif message_id == "B6" and len(data_bytes) == 5:  # STP; Set desired incremental displacement
                     status_update = {"sDisplacement": self.get_32bit(data_bytes)}
+                elif message_id == "B7" and len(data_bytes) == 5:  # POS; Set desired encoder position
+                    status_update = {"sEncoder": self.get_32bit(data_bytes)}
+                    self.motor_starts_moving.emit(controller_id)
                 elif message_id == "B8" and len(data_bytes) == 5:  # QEC; Set desired quadrature encoder's position
                     status_update = {"sEncoder": self.get_32bit(data_bytes)}
                     self.motor_starts_moving.emit(controller_id)
@@ -292,6 +272,8 @@ class MotorManager(QObject):
                     acr, ena, direction, mcs = self.analyze_message_id(int(message_id, 16))
                     status_update = {"acr": acr, "ena": ena, "direction": direction, "mcs": mcs}
 
+                    print("Cool", ena, controller_id)
+
                     if ena == 1:
                         self.motor_ena.emit(controller_id)
                     if ena == 0:
@@ -305,7 +287,10 @@ class MotorManager(QObject):
                         })
 
             elif header == "CC":  # Feedback header "CC"
-                if message_id == "B1" and len(data_bytes) == 5:  # QEC; Check current quadrature encoder's position
+                if message_id == "B0" and len(data_bytes) == 5: # POS; Check current position
+                    rEncoder = self.get_32bit(data_bytes)
+                    self.motor_position.emit(controller_id, rEncoder)
+                if message_id == "B1" and len(data_bytes) == 5: # QEC; Check current quadrature encoder's position
                     rEncoder = self.get_32bit(data_bytes)
                     self.motor_position.emit(controller_id, rEncoder)
                     status_update = {"rEncoder": rEncoder}

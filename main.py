@@ -10,6 +10,7 @@ if __name__ == "__main__":
     print("=== Omnivac gestartet ===")
 
     app = QApplication(sys.argv)
+    app.setStyle("Fusion")
 
     with open ("resources/style.qss", "r") as style_file:
         app.setStyleSheet(style_file.read())

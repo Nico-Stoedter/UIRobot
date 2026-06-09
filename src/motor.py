@@ -17,17 +17,9 @@ class Motor(QObject):
         self.unit = self.config_manager.get_value(self.motor_id, 'Software_Config', 'Unit')
         self.joy_axis = int(self.config_manager.get_value(self.motor_id, 'Software_Config', 'Joystick_Axis'))
         self.joy_deadzone = float(self.config_manager.get_value(self.motor_id, 'Software_Config', 'Deadzone'))
+        self.dev_type = int(self.config_manager.get_value(self.motor_id, 'Software_Config', 'Device_Type'))
 
-        self.spd_pps = int(self.config_manager.get_value(self.motor_id, 'Hardware_Config', 'Max_Speed(pps)'))
-        self.acc_rate_ms = int(self.config_manager.get_value(self.motor_id, 'Hardware_Config', 'Acceleration_Rate(ms)'))
-        self.dec_rate_ms = int(self.config_manager.get_value(self.motor_id, 'Hardware_Config', 'Deceleration_Rate(ms)'))
-        self.start_spd_pps = int(self.config_manager.get_value(self.motor_id, 'Hardware_Config', 'Start_Speed(pps)'))
-        self.stop_spd_pps = int(self.config_manager.get_value(self.motor_id, 'Hardware_Config', 'Stop_Speed(pps)'))
-        self.backlash_comp = int(self.config_manager.get_value(self.motor_id, 'Hardware_Config', 'Backlash_Compensation'))
-        self.phase_current_a = float(self.config_manager.get_value(self.motor_id, 'Hardware_Config', 'Phase_Current(A)'))
-        self.current_reduction_pct = int(self.config_manager.get_value(self.motor_id, 'Hardware_Config', 'Current_Reduction(%)'))
-        self.micro_stepping = int(self.config_manager.get_value(self.motor_id, 'Hardware_Config', 'Micro_Stepping'))
-        self.direction = int(self.config_manager.get_value(self.motor_id, 'Hardware_Config', 'Direction'))
+        self.encoder = self.config_manager.get_value(self.motor_id, 'Hardware_Info', 'Available_Encoder')
 
         self.security_pos = self.config_manager.get_security_positions(motor_id)
 

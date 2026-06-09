@@ -77,6 +77,7 @@ class SerialManager(QObject):
 
     def send_message(self, message):
         """Send a message via the serial connection."""
+        print("Cool")
         if self.worker:
             self.worker.send_message(message)
 

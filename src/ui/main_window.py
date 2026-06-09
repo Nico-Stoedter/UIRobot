@@ -107,18 +107,32 @@ class MainWindow(QMainWindow):
 
     def _setup_comport_page(self):
         """Initialisiert die UI-Komponenten"""
-        
-        self.ui.combo_port.addItems(self.getActivePorts())
+        if sys.platform.startswith("win"):
+            self.ui.combo_port.addItems(self.get_active_ports_win())
+        elif sys.platform.startswith("linux"):
+            self.ui.combo_port.addItems(self.get_active_ports_lin())
         self.ui.combo_baud.addItems(['9600', '14400', '19200', '38400', '57600', '115200'])
         self.ui.combo_byte.addItems(['8', '7', '6', '5'])
         self.ui.combo_parity.addItems(["None", 'Odd', 'Even', 'Mark', 'Space'])
         self.ui.combo_stop.addItems(['1', '1.5', '2'])
 
-    def getActivePorts(self) -> list:
-        '''Gets all comports found and returns a list'''
+    def get_active_ports_win(self) -> list:
+        '''Gets all comports found and returns a list (Windows)'''
         comport_list = []
         for i in serial.tools.list_ports.comports():
             i = str(i)[0:5] #Wählt die Zeichen im String die die Comportbezeichnung enthalten
+            comport_list.append(i)
+        if comport_list == []:
+            return ["No comport found"]
+        else:
+            return comport_list
+        
+    def get_active_ports_lin(self) -> list:
+        """Gets all comports found and returns a list (Linux)"""
+        comport_list = []
+        for i in serial.tools.list_ports.comports():
+            print(i.device)
+            i = str(i)[5:12] # Wählt die Zeichen im String die die Comportbezeichnung enthalten
             comport_list.append(i)
         if comport_list == []:
             return ["No comport found"]
