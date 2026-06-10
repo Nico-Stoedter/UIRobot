@@ -1,3 +1,0 @@
-Special X Y -> id X 74 und id Y 75
-Rot_Trn -> id rot 72 und id trn 73
-r1_r3 -> id r1 70 und id r3 71

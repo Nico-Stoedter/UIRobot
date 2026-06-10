@@ -10,7 +10,7 @@
 
 from PySide6.QtCore import (QCoreApplication, QDate, QDateTime, QLocale,
     QMetaObject, QObject, QPoint, QRect,
-    QSize, QTime, QUrl, Qt)
+    QSize, QTime, QUrl, Qt, Signal)
 from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
     QFont, QFontDatabase, QGradient, QIcon,
     QImage, QKeySequence, QLinearGradient, QPainter,
@@ -19,9 +19,13 @@ from PySide6.QtWidgets import (QApplication, QComboBox, QGridLayout, QHBoxLayout
     QLabel, QMainWindow, QPushButton, QScrollArea,
     QSizePolicy, QSpacerItem, QStackedWidget, QVBoxLayout,
     QWidget)
-from omnivac import resource_rc
+from src.ui import resource_rc
 
 class Ui_MainWindow(object):
+
+    load_comport_page = Signal()
+    load_motor_page = Signal()
+
     def setupUi(self, MainWindow):
         if not MainWindow.objectName():
             MainWindow.setObjectName(u"MainWindow")
@@ -83,7 +87,7 @@ class Ui_MainWindow(object):
         self.reset_btn = QPushButton(self.icon_only_widget)
         self.reset_btn.setObjectName(u"reset_btn")
         icon2 = QIcon()
-        icon2.addFile(u"icon/icons8-neustart-32.ico", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
+        icon2.addFile(u"resources/icon/icons8-neustart-32.ico", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
         self.reset_btn.setIcon(icon2)
         self.reset_btn.setIconSize(QSize(20, 20))
         self.reset_btn.setCheckable(True)
@@ -105,7 +109,7 @@ class Ui_MainWindow(object):
         self.enable_all_btn = QPushButton(self.icon_only_widget)
         self.enable_all_btn.setObjectName(u"enable_all_btn")
         icon4 = QIcon()
-        icon4.addFile(u"icon/icons8-abschalttaste-32.ico", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
+        icon4.addFile(u"resources/icon/icons8-abschalttaste-32.ico", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
         self.enable_all_btn.setIcon(icon4)
         self.enable_all_btn.setIconSize(QSize(20, 20))
         self.enable_all_btn.setCheckable(False)
@@ -116,7 +120,7 @@ class Ui_MainWindow(object):
         self.disable_all_btn = QPushButton(self.icon_only_widget)
         self.disable_all_btn.setObjectName(u"disable_all_btn")
         icon5 = QIcon()
-        icon5.addFile(u"icon/icons8-power-off-button-32.ico", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
+        icon5.addFile(u"resources/icon/icons8-power-off-button-32.ico", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
         self.disable_all_btn.setIcon(icon5)
         self.disable_all_btn.setIconSize(QSize(20, 20))
         self.disable_all_btn.setCheckable(False)
@@ -127,7 +131,7 @@ class Ui_MainWindow(object):
         self.stop_btn = QPushButton(self.icon_only_widget)
         self.stop_btn.setObjectName(u"stop_btn")
         icon6 = QIcon()
-        icon6.addFile(u"icon/error-32.ico", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
+        icon6.addFile(u"resources/icon/error-32.ico", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
         self.stop_btn.setIcon(icon6)
         self.stop_btn.setIconSize(QSize(20, 20))
         self.stop_btn.setCheckable(False)
@@ -424,11 +428,11 @@ class Ui_MainWindow(object):
 
         self.horizontalLayout_6.addItem(self.horizontalSpacer_6)
 
-        self.btn_connect = QPushButton(self.page)
-        self.btn_connect.setObjectName(u"btn_connect")
-        self.btn_connect.setMaximumSize(QSize(200, 100))
+        self.connect_btn = QPushButton(self.page)
+        self.connect_btn.setObjectName(u"connect_btn")
+        self.connect_btn.setMaximumSize(QSize(200, 100))
 
-        self.horizontalLayout_6.addWidget(self.btn_connect)
+        self.horizontalLayout_6.addWidget(self.connect_btn)
 
         self.horizontalSpacer_7 = QSpacerItem(380, 20, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Minimum)
 
@@ -537,6 +541,6 @@ class Ui_MainWindow(object):
         self.stop_btn2.setText(QCoreApplication.translate("MainWindow", u"STOP", None))
         self.exit_btn2.setText(QCoreApplication.translate("MainWindow", u"Exit", None))
         self.menu_btn.setText("")
-        self.btn_connect.setText(QCoreApplication.translate("MainWindow", u"Connect", None))
+        self.connect_btn.setText(QCoreApplication.translate("MainWindow", u"Connect", None))
     # retranslateUi
 
