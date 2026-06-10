@@ -285,7 +285,7 @@ class ApplicationManager(QObject):
             # Deadzone
             if joy_deflection <= deadzone and joy_deflection >= -deadzone:
                 self.joystick_manager.moving_motor[motor_id] = False
-                self.motor_manager.move_motor_joy(motor_id, motor.encoder, 0)
+                self.motor_manager.move_motor_joy(motor_id, 0, motor.encoder)
                 self._on_motor_finished_moving((motor_id, "spd"))
                 continue
 

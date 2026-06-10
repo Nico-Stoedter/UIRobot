@@ -42,7 +42,6 @@ class SerialWorker(QObject):
 
     def send_message(self, message):
         """Send a message via the serial port."""
-        print("Cool")
         if self.serial_connection and self.serial_connection.is_open:
             self.serial_connection.write(message.encode('utf-8'))
             print(f"Sent: {message}")
