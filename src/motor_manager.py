@@ -155,6 +155,28 @@ class MotorManager(QObject):
                 msg = f"ADR={idx};STP0;"
                 self.serial_manager.send_message(msg)
 
+    def set_motor_settings(self):
+        for motor_id, motor in self.motors.items():
+            acc_rate = motor.acc_rate_ms
+            dec_rate = motor.dec_rate_ms
+            start_spd = motor.start_spd_pps
+            stop_spd = motor.stop_spd_pps
+            backlash_comp = motor.backlash_comp
+            phase_current = int(motor.phase_current_a * 10)    # 2.0 A -> 20 for command
+            current_reduction  = motor.current_reduction_pct
+            micro_stepping = motor.micro_stepping
+
+            msg = (f"ADR={motor_id};MAC{acc_rate};MDE{dec_rate};"
+                   f"MMS{start_spd};MMD{stop_spd};BLC{backlash_comp};"
+                   f"CUR{phase_current};ACR{current_reduction};MCS{micro_stepping};")
+        
+            self.serial_manager.send_message(msg)
+
+    def request_hardware_info(self):
+        for motor_id in self.motors.keys():
+            msg = f"ADR={motor_id};MCF;"
+            self.serial_manager.send_message(msg)
+
     # Helper methods for data processing
     def get_32bit(self, data_bytes):
         """Convert 5 bytes to 32-bit signed integer."""
@@ -231,7 +253,7 @@ class MotorManager(QObject):
                 if message_id == "B0" and len(data_bytes) == 3: # MCFη; MCF; master configuration register
                     mcf = self.get_16bit(data_bytes)
                     bin16 = format(mcf & 0xFFFF, "016b")
-                    print(bin16[2], bin16[4], bin16[5])
+                    #print(bin16[2], bin16[4], bin16[5])
                     self.hardware_info.emit(controller_id, bin16)
                 elif message_id == "B1" and len(data_bytes) == 6:  # MAC; MAC; set acceleration rate
                     status_update = {"AM": data_bytes[0], "accRate": self.get_32bit(data_bytes[1:])}

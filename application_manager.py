@@ -20,7 +20,7 @@ class ApplicationManager(QObject):
     motors_scan_completed = Signal(list)
     build_motor_page = Signal(object)       # Object -> dict[]
     read_axis_motor_pairs = Signal(object)  # Object -> dict[int, int]
-    motors_settings = Signal()              # Sends the config settings to the motor
+    motor_settings = Signal()               # Sends a Signal to set the config settings
     motor_hardware_info = Signal()          # Sends the hardware info to the config file
 
     def __init__(self, window):
@@ -71,8 +71,8 @@ class ApplicationManager(QObject):
         self.motors_scan_completed.connect(self.motor_position_poller.set_motor_ids)
         self.build_motor_page.connect(self.main_window._setup_motor_page)
         self.read_axis_motor_pairs.connect(self.joystick_manager.receive_axis_motor_pairs)
-        #self.motors_settings.connect(self.motor_manager.set_motor_settings)
-        #self.motor_hardware_info.connect(self.motor_manager.hardware_info)
+        self.motor_hardware_info.connect(self.motor_manager.request_hardware_info)
+        self.motor_settings.connect(self.motor_manager.set_motor_settings)
 
         # --- MotorPositionPoller Signals ---
         self.motor_position_poller.poll_motor.connect(self.motor_manager.get_motor_position)
@@ -245,7 +245,7 @@ class ApplicationManager(QObject):
     @Slot(int)
     def on_motor_enabled(self, motor_id) -> None:
         motor = self.motor_manager.motors.get(motor_id)
-        print(motor.status["ena"], motor_id)
+        #print(motor.status["ena"], motor_id)
         if motor.status["ena"] == 0:
             self.main_window.change_pixmap(motor_id, "gruen.png")
             print("Status changed gruen")
@@ -336,7 +336,7 @@ class ApplicationManager(QObject):
         self.build_motor_page.emit(self.motor_manager.motors)  
         self.read_axis_motor_pairs.emit(axis_motor_pairs)
         self.motors_scan_completed.emit(scanned_motor_ids)
-        self.motors_settings.emit()
+        self.motor_settings.emit()
         self.motor_hardware_info.emit()
         self.change_joystick_layout_ui(False)   # False because intial layout ist axis 1-5
 
