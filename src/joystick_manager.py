@@ -61,6 +61,7 @@ class JoystickManager(QObject):
                 elif event.type == pygame.JOYBUTTONUP:
                     self.on_button_up(event.button, event)
                 elif event.type == pygame.JOYAXISMOTION:
+                    print(event.axis)
                     self.on_axis_moved(event.axis, event)
 
                 pygame.event.clear()
@@ -128,10 +129,16 @@ class JoystickManager(QObject):
         value = event.value
 
         # Technically LT, RT are both axis on its own with [-1.0, 1.0] -> Convert them to LT [-1.0, 0]; RT [0.0, 1.0]
-        if axis == 5:   
-            value = ((event.value + 1) / 2) * self.spd_factor
-        if axis == 4:
-            value = (((event.value + 1) / 2) * -1) * self.spd_factor
+        if sys.platform.startswith("win"):
+            if axis == 5:   
+                value = ((event.value + 1) / 2) * self.spd_factor
+            if axis == 4:
+                value = (((event.value + 1) / 2) * -1) * self.spd_factor
+        elif sys.platform.startswith("lin"):
+            if axis == 5:   
+                value = ((event.value + 1) / 2) * self.spd_factor
+            if axis == 2:
+                value = (((event.value + 1) / 2) * -1) * self.spd_factor
 
         self.last_axis_values[motor_id] = value
 
