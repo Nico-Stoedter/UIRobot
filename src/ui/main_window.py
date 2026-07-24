@@ -36,7 +36,7 @@ class MainWindow(QMainWindow):
         # UI Setup
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
-        self.setWindowTitle("Omnivac - UiRobot")
+        self.setWindowTitle("Omnivac - UiRobot V1.0")
         self.setWindowIcon(QIcon(os.path.join(self.current_dir, "resources/icon/omnivac.ico")))
 
         self.input_position: dict[int, QLineEdit] = {}  # References for User Input UI in Motor Page
