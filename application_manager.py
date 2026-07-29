@@ -115,9 +115,29 @@ class ApplicationManager(QObject):
             print(f"Serial connection successful: {message}")
             # Start motor scanning
             self.motor_manager.scan_motors()
+            self.change_to_disconnect_btn()
             return True
         else:
             return False
+
+    def change_to_disconnect_btn(self):
+        connect_btn = self.main_window.ui.connect_btn
+        connect_btn.setText("Disconnect")
+        connect_btn.clicked.disconnect()
+        connect_btn.clicked.connect(self.disconnect)
+
+    def disconnect(self):
+        self.motor_manager.disable_all()
+        self.motor_position_poller.stop_polling()
+        self.serial_manager.close_connection()
+        self.change_to_connect_btn()
+
+    def change_to_connect_btn(self):
+        connect_btn = self.main_window.ui.connect_btn
+        connect_btn.setText("Connect")
+        connect_btn.clicked.disconnect()
+        connect_btn.clicked.connect(self.connect_to_motors)
+
         
     def shutdown(self):
         """Stop background work before the application exits."""
@@ -411,7 +431,7 @@ class ApplicationManager(QObject):
             dev_type = motor.dev_type
             cur_pos_stp = motor.status["rEncoder"]
             start = self.steps_to_unit(motor_id, cur_pos_stp)
-            direction = True if target >= start else False
+            direction = True if target >= start else False  # True is in positive direction, False otherwise
             security_pos: dict[tuple[float, bool], str] = motor.security_pos
             
             candidates = [pos for (pos, dir), _ in security_pos.items() if dir == direction]
